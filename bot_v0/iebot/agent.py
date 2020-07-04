@@ -76,7 +76,7 @@ def play_highest_column(board, opp_mark):
     max_lines = lines[:, 0].max()
 
     #counters = pd.Series([c['counter'] for c in top_pieces]).sort_values(ascending=False)
-    counters = np.array([c['counter'] for i, c in enumerate(top_pieces)])
+    counters = np.array([[i, c['counter']] for i, c in enumerate(top_pieces)])
     counters = counters[list(reversed(counters[:, 1].argsort()))]
 
     max_columns = counters.max()
@@ -102,7 +102,7 @@ def play_highest_column(board, opp_mark):
                 if free_slots[start_pos - 1]:
                     return int(start_pos - 1)
 
-    for i, _ in counters.iteritems():
+    for i, _ in counters:
         if free_slots[i]:
             if free_slots[i] < 4 and opp_mark == top[i]:
                 continue
