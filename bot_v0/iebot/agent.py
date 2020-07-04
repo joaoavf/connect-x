@@ -70,7 +70,7 @@ def get_lines(board):
 def play_highest_column(board, opp_mark):
     top_pieces = get_top_pieces(board)
     #lines = pd.DataFrame(reversed(get_lines(board)), columns=['counter', 'end_pos'])
-    lines = np.array(reversed(get_lines(board)))
+    lines = np.array(list(reversed(get_lines(board))))
 
     #max_lines = lines['counter'].max()
     max_lines = lines[:, 0].max()
