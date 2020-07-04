@@ -1,5 +1,6 @@
-def get_top_pieces(board):
+import numpy as np
 
+def get_top_pieces(board):
     top_pieces = []
 
     for c in range(board.shape[1]):
@@ -33,7 +34,6 @@ def get_top_pieces(board):
 
 
 def get_lines(board):
-
     max_list = []
 
     for c in range(board.shape[0]):
@@ -69,11 +69,16 @@ def get_lines(board):
 
 def play_highest_column(board, opp_mark):
     top_pieces = get_top_pieces(board)
-    lines = pd.DataFrame(reversed(get_lines(board)), columns=['counter', 'end_pos'])
+    #lines = pd.DataFrame(reversed(get_lines(board)), columns=['counter', 'end_pos'])
+    lines = np.array(reversed(get_lines(board)))
 
-    max_lines = lines['counter'].max()
+    #max_lines = lines['counter'].max()
+    max_lines = lines[:, 0].max()
 
-    counters = pd.Series([c['counter'] for c in top_pieces]).sort_values(ascending=False)
+    #counters = pd.Series([c['counter'] for c in top_pieces]).sort_values(ascending=False)
+    counters = np.array([c['counter'] for i, c in enumerate(top_pieces)])
+    counters = counters[list(reversed(counters[:, 1].argsort()))]
+
     max_columns = counters.max()
 
     free_slots = [c['is_space'] for c in top_pieces]
@@ -81,7 +86,8 @@ def play_highest_column(board, opp_mark):
     top = [c['top_piece'] for c in top_pieces]
 
     if max_lines > max_columns:
-        end_pos = lines.loc[lines['counter'].idxmax()]['end_pos']
+        #end_pos = lines.loc[lines[:, 1].idxmax()]['end_pos']
+        end_pos = lines[lines[:, 0].argmax(), 1]
         start_pos = end_pos - lines['counter'].max() + 1
         level = free_slots[end_pos]
         if end_pos < 6:
@@ -102,6 +108,10 @@ def play_highest_column(board, opp_mark):
                 continue
             else:
                 return int(i)
+
+
+def translate_board(board):
+    return np.array(board).reshape(6, 7)
 
 
 def my_agent(obs, config):
