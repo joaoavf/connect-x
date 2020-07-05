@@ -81,8 +81,8 @@ class Diagonal:
             self.values = board_values.diagonal(offset)
             self.ids = ids.diagonal(offset)
         else:
-            self.values = np.diagonal(np.fliplr(board_values))
-            self.ids = np.diagonal(np.fliplr(ids))
+            self.values = np.diagonal(np.fliplr(board_values), offset=offset)
+            self.ids = np.diagonal(np.fliplr(ids), offset=offset)
 
         self.offset = offset
         self.left_to_right = left_to_right
