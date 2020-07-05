@@ -117,7 +117,7 @@ def play_highest_column(board, opp_mark):
                 return int(i)
 
 
-def my_agent(obs, config):
+def iebot(obs, config):
     board = translate_board(obs.board)
 
     opp_mark = 2 if obs.mark == 1 else 1
