@@ -1,6 +1,7 @@
 import numpy as np
 from iebot import iebot
 
+
 def process_interval(values, ids, player_mark, opp_mark):
     output = []
     for i in range(len(values) - 3):
@@ -40,7 +41,6 @@ class Board:
                     return item['free_space_id'] % 7
                 elif self.values.flatten()[item['free_space_id'] + 7] > 0:
                     return item['free_space_id'] % 7
-
 
     def process_all(self):
         results = []
