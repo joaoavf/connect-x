@@ -110,11 +110,12 @@ def play_highest_column(board, opp_mark):
                     return int(start_pos - 1)
 
     for i, _ in counters:
-        if num_spaces[i]:
-            if num_spaces[i] < 4 and opp_mark == top[i]:
-                continue
-            else:
-                return int(i)
+        for threshold in reversed(range(1, 5)):
+            if num_spaces[i]:
+                if num_spaces[i] < threshold and opp_mark == top[i]:
+                    continue
+                else:
+                    return int(i)
 
 
 def iebot(obs, config):
