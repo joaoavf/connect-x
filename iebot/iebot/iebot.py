@@ -126,4 +126,7 @@ def iebot(obs, config):
 
     play = play_highest_column(board, opp_mark)
 
+    if board.sum() == 0:
+        return int(3)
+
     return int(play)
