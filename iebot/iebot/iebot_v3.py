@@ -15,6 +15,31 @@ def run_a(a):
 
     return b, c"""
 
+### Working Minimax algorithm
+"""
+def create_recursiveness(recursiveness):
+    if recursiveness == 1:
+        return [random.randint(1,10), random.randint(1,10), random.randint(1,10)]
+    else:
+        return [create_recursiveness(recursiveness-1), create_recursiveness(recursiveness-1), create_recursiveness(recursiveness-1)]
+
+def analyze_recursiveness(x,recursiveness):
+    zed = []
+    for y in x:
+        if isinstance(y, list):
+            zed.append(analyze_recursiveness(y, recursiveness))
+        else:
+            if recursiveness % 2:
+                return max(x)
+            else:
+                return min(x)
+    if isinstance(zed[0], list):
+        return analyze_recursiveness(zed, recursiveness-1)
+        
+    return zed
+            
+            """
+
 import numpy as np
 
 
