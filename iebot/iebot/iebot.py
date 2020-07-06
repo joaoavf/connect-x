@@ -110,6 +110,10 @@ def play_highest_column(board, opp_mark):
                     return int(start_pos - 1)
 
     for i, count_value in counters:
+        if count_value < 3:
+            if num_spaces[3]:
+                return int(3)
+
         if num_spaces[i]:
             if count_value + num_spaces[i] >= 4:  # and opp_mark == top[i]:
                 return int(i)
