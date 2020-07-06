@@ -17,6 +17,64 @@ def run_a(a):
 
 import numpy as np
 
+
+class Node:
+    def __init__(self, bit_board, mask, position_map, column_map, player_mark, recursiveness, is_origin):
+        self.bit_board = bit_board
+        self.mask = mask
+        self.position_map = position_map
+        self.column_map = column_map
+        self.player_mark = player_mark
+        self.opp_mark = 2 if player_mark == 1 else 1
+        self.is_tree = False
+        self.children = []
+        self.recursiveness = recursiveness
+        self.create_trees()
+        self.is_origin = is_origin
+        self.value = 0
+
+    def create_trees(self):
+        for column in columns:
+            play = can_play(self.mask, column)
+            if play:
+                new_bit_board = self.bit_board | play
+                new_mask = self.mask | play
+                self.children.append(Tree(bit_board=new_bit_board,
+                                          mask=new_mask,
+                                          play=play,
+                                          position_map=self.position_map,
+                                          column_map=self.column_map,
+                                          player_mark=self.player_mark,
+                                          recursiveness=self.recursiveness))
+
+
+class Tree:
+    def __init__(self, bit_board, mask, play, position_map, column_map, player_mark, recursiveness):
+        self.node = []
+        self.bit_board = bit_board
+        self.mask = mask
+        self.play = play
+        self.position_map = position_map
+        self.column_map = column_map
+        self.player_mark = player_mark
+        self.opp_mark = 2 if player_mark == 1 else 1
+        self.connect4 = connected_four(bit_board)
+        self.is_tree = True
+        self.recursiveness = recursiveness
+
+        self.create_node()
+
+    def create_node(self):
+        if self.recursiveness > 1 and not self.connect4:
+            self.node = Node(bit_board=self.bit_board ^ self.mask,
+                             mask=self.mask,
+                             position_map=self.position_map,
+                             column_map=self.column_map,
+                             player_mark=self.opp_mark,
+                             recursiveness=self.recursiveness - 1,
+                             is_origin=False)
+
+
 pos_map = [2 ** i for i in range(49)]
 
 columns = []
@@ -43,33 +101,6 @@ def column_routine(bit_board, mask):
                            'mask': new_mask,
                            'connect_4': connected_four(new_bit_board)})
     return result
-
-
-def leaf(bit_board, mask, recursiveness=1):
-    results = {'bit_board': bit_board, 'mask': mask}
-
-    results['tree'] = column_routine(bit_board=bit_board, mask=mask)
-
-    if recursiveness > 1:
-        if any([result['connect_4'] for result in results['tree']]):
-            return 'aaaa'
-        for result in results['tree']:
-            if not result['connect_4']:
-                if recursiveness > 1:
-                    result['tree'] = leaf(bit_board ^ mask, mask, recursiveness - 1)
-
-    return results
-
-
-def search_tree(tree, start):
-    for result in tree['tree']:
-        if result['connect_4']:
-            return start + [result['bit_board'] ^ tree['bit_board']]
-        else:
-            try:
-                return search_tree(result['tree'], [result['bit_board'] ^ tree['bit_board']])
-            except:
-                return start + [result['bit_board'] ^ tree['bit_board']]
 
 
 def translate_board(board):
