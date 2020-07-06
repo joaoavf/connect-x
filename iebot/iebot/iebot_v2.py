@@ -88,7 +88,7 @@ class Diagonal:
         self.left_to_right = left_to_right
 
 
-def my_agent(obs, config):
+def iebot_v2(obs, config):
     board = Board(obs.board, obs.mark)
 
     play = board.play()
