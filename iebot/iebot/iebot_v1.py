@@ -96,24 +96,18 @@ def get_horizontal_summary(board):
 
 
 def horizontal_play(horizontal_summary, vertical_summary):
-    # TODO figure out how to deal with current ordering (non-ordering)
     number_free_spaces = vertical_summary[:, 1]
-    end_pos = horizontal_summary[horizontal_summary[:, 0].argmax(), 1]
+    end_position = horizontal_summary[horizontal_summary[:, 1].argmax(), 1]
 
-    # TODO fix start_pos routine
-    start_pos = end_pos - horizontal_summary['counter'].max() + 1
-    level = number_free_spaces[end_pos]
-    if end_pos < 6:
+    start_position = end_position - horizontal_summary[:, 0].max() + 1
+    level = number_free_spaces[end_position]
 
-        if level == number_free_spaces[end_pos + 1] - 1:
-            if number_free_spaces[end_pos + 1]:
-                return end_pos + 1
+    possible_moves = [start_position - 1, end_position + 1]
+    valid_moves = [position for position in possible_moves if position in list(range(7))]
 
-    if start_pos > 0:
-
-        if level == number_free_spaces[start_pos - 1] - 1:
-            if number_free_spaces[start_pos - 1]:
-                return start_pos - 1
+    for position in valid_moves:
+        if level == number_free_spaces[position] - 1:
+            return position
 
     return vertical_play(vertical_summary)
 
