@@ -32,7 +32,7 @@ def get_column_summary(column):
                 break
         else:
             free_spaces += 1
-
+    # TODO remove top_piece, it is irrelevant in the code logic
     return top_piece, count, free_spaces
 
 
@@ -108,51 +108,70 @@ def play_highest_column(board, opp_mark):
     counters = np.array([[i, c['counter']] for i, c in enumerate(top_pieces)])
     counters = counters[list(reversed(counters[:, 1].argsort()))]
 
-    max_columns = counters.max()
 
-    num_spaces = [c['num_spaces'] for c in top_pieces]
+def horizontal_play(horizontal_summary, num_spaces):
+    end_pos = horizontal_summary[horizontal_summary[:, 0].argmax(), 1]
+    start_pos = end_pos - horizontal_summary['counter'].max() + 1
+    level = num_spaces[end_pos]
+    if end_pos < 6:
 
-    top = [c['top_piece'] for c in top_pieces]
+        if level == num_spaces[end_pos + 1] - 1:
+            if num_spaces[end_pos + 1]:
+                return True, int(end_pos + 1)
 
-    if max_lines > max_columns:
-        # end_pos = lines.loc[lines[:, 1].idxmax()]['end_pos']
-        end_pos = lines[lines[:, 0].argmax(), 1]
-        start_pos = end_pos - lines['counter'].max() + 1
-        level = num_spaces[end_pos]
-        if end_pos < 6:
+    if start_pos > 0:
 
-            if level == num_spaces[end_pos + 1] - 1:
-                if num_spaces[end_pos + 1]:
-                    return int(end_pos + 1)
+        if level == num_spaces[start_pos - 1] - 1:
+            if num_spaces[start_pos - 1]:
+                return True, int(start_pos - 1)
 
-        if start_pos > 0:
+    return False, -1
 
-            if level == num_spaces[start_pos - 1] - 1:
-                if num_spaces[start_pos - 1]:
-                    return int(start_pos - 1)
 
+def vertical_play(counters, num_spaces):
     for i, count_value in counters:
         if count_value < 3:
             if num_spaces[3]:
-                return int(3)
+                return 3
 
         if num_spaces[i]:
-            if count_value + num_spaces[i] >= 4:  # and opp_mark == top[i]:
-                return int(i)
+            if count_value + num_spaces[i] >= 4:
+                return i
 
     for i, count_value in counters:
         if num_spaces[i]:
-            return int(i)
+            return i
+
+
+def play(board):
+    vertical_summary = get_vertical_summary(board)
+
+    horizontal_summary = np.array(list(reversed(get_horizontal_summary(board))))
+
+    # TODO make sure this is working, I have tossed out reversed()
+    max_horizontal_counter = horizontal_summary[:, 0].max()
+
+    counters = np.array([[i, c['counter']] for i, c in enumerate(vertical_summary)])
+    counters = counters[list(reversed(counters[:, 1].argsort()))]
+
+    max_vertical_counter = counters.max()
+
+    num_spaces = [c['num_spaces'] for c in vertical_summary]
+
+    if max_horizontal_counter > max_vertical_counter:
+        is_play, play_position = horizontal_play(horizontal_summary=horizontal_summary, num_spaces=num_spaces)
+        if is_play:
+            return play_position
+
+    return vertical_play(counters=counters, num_spaces=num_spaces)
 
 
 def iebot_v1(obs, config):
     board = translate_board(obs.board)
 
-    opp_mark = 2 if obs.mark == 1 else 1
-
-    play = play_highest_column(board, opp_mark)
+    play_position = play(board)
 
     if board.sum() == 0:
         return int(3)
 
-    return int(play)
+    return int(play_position)
