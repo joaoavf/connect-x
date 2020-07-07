@@ -6,10 +6,7 @@ This code is a Connect 4 agent based on simple procedural technology that search
 """
 
 import numpy as np
-
-
-def translate_board(board):
-    return np.array(board).reshape(6, 7)
+from iebot.utils import translate_board
 
 
 def get_vertical_summary(column):
