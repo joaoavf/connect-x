@@ -16,8 +16,8 @@ def get_vertical_summary(column):
     column (List): Column of a Connect4 Game mapped by (0: Empty, 1: Player 1, 2: Player 2)
 
     Returns:
-    tuple: (top_piece (int)  : top_piece identifier to player 1 or 2,
-            count (int)      : count of top_piece sequence,
+    tuple: (top_piece (int)   : top_piece identifier to player 1 or 2,
+            count (int)       : count of top_piece sequence,
             free_spaces (int) : number of free cell slots in that column) """
 
     count, top_piece, free_spaces = 0, 0, 0
