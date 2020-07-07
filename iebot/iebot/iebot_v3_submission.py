@@ -342,8 +342,6 @@ def column_from_play(play):
         if play in column:
             return i
 
-import time
-
 def iebot_v3(obs, config):
     board = translate_board(obs.board)
     bit_board, mask = get_position_mask_bitmap(board, obs.mark)
