@@ -56,44 +56,50 @@ def get_vertical_summary(board):
     return vertical_summary
 
 
-def get_lines(board):
-    max_list = []
+def get_row_summary(row):
+    """Analyses the status of a given horizontal row.
 
-    for c in range(board.shape[0]):
+    Parameters:
+    row (List): Row of a Connect4 Game mapped by (0: Empty, 1: Player 1, 2: Player 2)
 
-        row = board[c, :]
+    Returns:
+    List: [max_count (int)              : max count achieved by horizontal sequence in this row,
+           max_end_position (int)       : end position for the max count find]"""
 
-        last = -1
+    previous_cell_value, max_count, max_end_position, current_count = 0, 0, 0, 0
 
-        max_last_counter = 0
+    for cell_position, cell_value in enumerate(row):
+        if cell_value <= 0:
+            current_count = 0
+        elif cell_value == previous_cell_value:
+            current_count += 1
+        else:
+            previous_cell_value = cell_value
+            current_count = 1
 
-        max_pos = 0
+        if current_count > max_count:
+            max_count, max_end_position = current_count, cell_position
 
-        for i, v in enumerate(row):
+    return [max_count, max_end_position]
 
-            if v == last and v > 0:
-                last_counter += 1
 
-            elif v > 0:
-                last = v
-                last_counter = 1
+def get_horizontal_summary(board):
+    """Analyses the horizontal status of a board.
 
-            else:
-                last_counter = 0
+    Parameters:
+     board (np.array): 6x7 board mapped by (0: Empty, 1: Player 1, 2: Player 2)
 
-            if last_counter > max_last_counter:
-                max_last_counter = last_counter
-                max_pos = i
+    Returns:
+    List[List[max_count (int)              : max count achieved by horizontal sequence in this row,
+              max_end_position (int)       : end position for the max count find]]"""
 
-        max_list.append([max_last_counter, max_pos])
-
-    return max_list
+    return [get_row_summary(row=board[i, :]) for i in range(board.shape[0])]
 
 
 def play_highest_column(board, opp_mark):
     top_pieces = get_vertical_summary(board)
     # lines = pd.DataFrame(reversed(get_lines(board)), columns=['counter', 'end_pos'])
-    lines = np.array(list(reversed(get_lines(board))))
+    lines = np.array(list(reversed(get_horizontal_summary(board))))
 
     # max_lines = lines['counter'].max()
     max_lines = lines[:, 0].max()
