@@ -1,4 +1,4 @@
-from iebot import iebot
+from iebot_v2 import iebot_v2
 import numpy as np
 
 
@@ -94,7 +94,7 @@ class Node:
         play = -1
 
         for child in self.children:
-            if local_max < -child.value[0]:
+            if -child.value[0] > local_max:
                 local_max = -child.value[0]
                 play = child.play
 
@@ -115,9 +115,12 @@ def iebot_v3(obs, config):
 
     node = Node(bit_board, mask)
 
+    if node.value[0] < 0:
+        return int(iebot_v2(obs, config))
+
     if node.value[0] > 0 or node.value[1] < 0:
         play = column_from_play(node.value[2])
     else:
-        play = iebot(obs, config)
+        play = iebot_v2(obs, config)
 
     return int(play)
