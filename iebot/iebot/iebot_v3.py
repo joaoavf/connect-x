@@ -72,7 +72,6 @@ class Node:
         for play in plays:
             if play:
                 new_bit_board = self.bit_board | play
-                new_mask = self.mask | play
                 if connected_four(new_bit_board):
                     return [1, 0, play]
 
