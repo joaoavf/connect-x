@@ -364,8 +364,6 @@ def iebot_v3(obs, config):
 
     node = Node(bit_board, mask, recursiveness=recursiveness)
 
-    print('seconds: ', (time.monotonic() - start_time))
-
     if node.value[0] < 0:
         return int(iebot_v2(obs, config))
 
