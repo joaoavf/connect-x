@@ -1,3 +1,10 @@
+"""
+This code is a Connect 4 agent based on simple procedural technology that searches for 3 connected pieces and play the
+4th, either to block its opponent or to make its own Connect 4 Sequence.
+
+@author: João Alexandre Vaz Ferreira - joao.avf@gmail.com
+"""
+
 import numpy as np
 
 
@@ -5,33 +12,38 @@ def translate_board(board):
     return np.array(board).reshape(6, 7)
 
 
-def analyze_column(column):
-    top_piece, counter, num_spaces = 0, 0, 0
+def get_vertical_summary(column):
+    """Analyses the status of a given vertical column.
 
-    for value in column:
+    Parameters:
+    column (List): Column of a Connect4 Game mapped by (0: Empty, 1: Player 1, 2: Player 2)
 
-        if value > 0:
+    Returns:
+    tuple: (top_piece (int)  : top_piece identifier to player 1 or 2,
+            count (int)      : count of top_piece sequence,
+            free_spaces (int) : number of free cell slots in that column) """
 
-            if top_piece == 0:
-                top_piece = value
-                counter += 1
+    count, top_piece, free_spaces = 0, 0, 0
 
-            elif value == top_piece:
-                counter += 1
-
+    for cell_value in column:
+        if cell_value > 0:  # Cell is not empty
+            if count == 0:
+                top_piece = cell_value
+            if cell_value == top_piece:
+                count += 1
             else:
                 break
         else:
-            num_spaces += 1
+            free_spaces += 1
 
-    return top_piece, counter, num_spaces
+    return top_piece, count, free_spaces
 
 
 def contextualize_vertical(board):
     top_pieces = []
 
     for c in range(board.shape[1]):
-        top_piece, counter, num_spaces = analyze_column(column=board[:, c])
+        top_piece, counter, num_spaces = get_vertical_summary(column=board[:, c])
 
         top_pieces.append({'top_piece': top_piece,
                            'counter': counter,
