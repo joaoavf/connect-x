@@ -9,7 +9,7 @@ import numpy as np
 from iebot.utils import translate_board
 
 
-def get_vertical_summary(column):
+def get_column_summary(column):
     """Analyses the status of a given vertical column.
 
     Parameters:
@@ -18,7 +18,7 @@ def get_vertical_summary(column):
     Returns:
     tuple: (top_piece (int)   : top_piece identifier to player 1 or 2,
             count (int)       : count of top_piece sequence,
-            free_spaces (int) : number of free cell slots in that column) """
+            free_spaces (int) : number of free cell slots in that column)"""
 
     count, top_piece, free_spaces = 0, 0, 0
 
@@ -36,17 +36,24 @@ def get_vertical_summary(column):
     return top_piece, count, free_spaces
 
 
-def contextualize_vertical(board):
-    top_pieces = []
+def get_vertical_summary(board):
+    """Analyses the status of a given vertical column.
 
-    for c in range(board.shape[1]):
-        top_piece, counter, num_spaces = get_vertical_summary(column=board[:, c])
+    Parameters:
+    board (np.array): 6x7 board mapped by (0: Empty, 1: Player 1, 2: Player 2)
 
-        top_pieces.append({'top_piece': top_piece,
-                           'counter': counter,
-                           'num_spaces': num_spaces})
+    Returns:
+    list: [tuple: (top_piece (int)   : top_piece identifier to player 1 or 2,
+                   count (int)       : count of top_piece sequence,
+                   free_spaces (int) : number of free cell slots in that column)]"""
 
-    return top_pieces
+    vertical_summary = []
+
+    for column_position in range(board.shape[1]):
+        top_piece, counter, num_spaces = get_column_summary(column=board[:, column_position])
+        vertical_summary.append({'top_piece': top_piece, 'counter': counter, 'num_spaces': num_spaces})
+
+    return vertical_summary
 
 
 def get_lines(board):
@@ -84,7 +91,7 @@ def get_lines(board):
 
 
 def play_highest_column(board, opp_mark):
-    top_pieces = contextualize_vertical(board)
+    top_pieces = get_vertical_summary(board)
     # lines = pd.DataFrame(reversed(get_lines(board)), columns=['counter', 'end_pos'])
     lines = np.array(list(reversed(get_lines(board))))
 
