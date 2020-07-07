@@ -111,9 +111,23 @@ def column_from_play(play):
 
 
 def iebot_v3(obs, config):
-    bit_board, mask = get_position_mask_bitmap(translate_board(obs.board), obs.mark)
+    board = translate_board(obs.board)
+    bit_board, mask = get_position_mask_bitmap(board, obs.mark)
 
-    node = Node(bit_board, mask)
+    pieces = (board > 0).sum()
+
+    if pieces < 12:
+        recursiveness = 5
+    elif pieces < 18:
+        recursiveness = 6
+    elif pieces < 22:
+        recursiveness = 7
+    elif pieces < 26:
+        recursiveness = 8
+    else:
+        recursiveness = 9
+
+    node = Node(bit_board, mask, recursiveness=recursiveness)
 
     if node.value[0] < 0:
         return int(iebot_v2(obs, config))

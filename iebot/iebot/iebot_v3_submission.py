@@ -243,6 +243,10 @@ def can_play(bit_board, column):
 
 
 def connected_four(position):
+    # Vertical
+    m = position & (position >> 1)
+    if m & (m >> 2):
+        return True
     # Horizontal check
     m = position & (position >> 7)
     if m & (m >> 14):
@@ -255,10 +259,7 @@ def connected_four(position):
     m = position & (position >> 8)
     if m & (m >> 16):
         return True
-    # Vertical
-    m = position & (position >> 1)
-    if m & (m >> 2):
-        return True
+
     # Nothing found
     return False
 
@@ -342,11 +343,28 @@ def column_from_play(play):
         if play in column:
             return i
 
+import time
 
 def iebot_v3(obs, config):
-    bit_board, mask = get_position_mask_bitmap(translate_board(obs.board), obs.mark)
+    board = translate_board(obs.board)
+    bit_board, mask = get_position_mask_bitmap(board, obs.mark)
 
-    node = Node(bit_board, mask)
+    pieces = (board > 0).sum()
+
+    if pieces < 12:
+        recursiveness = 5
+    elif pieces < 18:
+        recursiveness = 6
+    elif pieces < 22:
+        recursiveness = 7
+    elif pieces < 26:
+        recursiveness = 8
+    else:
+        recursiveness = 9
+
+    node = Node(bit_board, mask, recursiveness=recursiveness)
+
+    print('seconds: ', (time.monotonic() - start_time))
 
     if node.value[0] < 0:
         return int(iebot_v2(obs, config))
