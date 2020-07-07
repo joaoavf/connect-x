@@ -16,7 +16,7 @@ def get_column_summary(column):
     column (List): Column of a Connect4 Game mapped by (0: Empty, 1: Player 1, 2: Player 2)
 
     Returns:
-    tuple: (top_piece (int)   : top_piece identifier to player 1 or 2,
+    Tuple: (top_piece (int)   : top_piece identifier to player 1 or 2,
             count (int)       : count of top_piece sequence,
             free_spaces (int) : number of free cell slots in that column)"""
 
@@ -37,13 +37,13 @@ def get_column_summary(column):
 
 
 def get_vertical_summary(board):
-    """Analyses the status of a given vertical column.
+    """Analyses the vertical status of a board.
 
     Parameters:
     board (np.array): 6x7 board mapped by (0: Empty, 1: Player 1, 2: Player 2)
 
     Returns:
-    list: [tuple: (top_piece (int)   : top_piece identifier to player 1 or 2,
+    List: [Tuple: (top_piece (int)   : top_piece identifier to player 1 or 2,
                    count (int)       : count of top_piece sequence,
                    free_spaces (int) : number of free cell slots in that column)]"""
 
@@ -145,7 +145,7 @@ def play_highest_column(board, opp_mark):
             return int(i)
 
 
-def iebot(obs, config):
+def iebot_v1(obs, config):
     board = translate_board(obs.board)
 
     opp_mark = 2 if obs.mark == 1 else 1
