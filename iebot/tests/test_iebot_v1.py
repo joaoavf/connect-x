@@ -45,3 +45,17 @@ def test_get_horizontal_summary():
     result = get_horizontal_summary(sample_board)
 
     np.testing.assert_array_equal(result, sample_result)
+
+
+def test_horizontal_play():
+    sample_board = np.array([[0, 0, 0, 2, 0, 0, 0],
+                             [0, 0, 0, 1, 0, 1, 1],
+                             [0, 0, 2, 2, 0, 2, 2],
+                             [0, 0, 1, 1, 0, 1, 2],
+                             [2, 0, 2, 2, 0, 1, 1],
+                             [2, 1, 1, 1, 0, 1, 2]])
+
+    horizontal_summary = get_horizontal_summary(sample_board)
+    vertical_summary = get_vertical_summary(sample_board)
+
+    assert horizontal_play(horizontal_summary=horizontal_summary, vertical_summary=vertical_summary) == 4
