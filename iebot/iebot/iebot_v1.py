@@ -106,9 +106,9 @@ def horizontal_play(horizontal_summary, vertical_summary):
     int : column number to be played"""
 
     number_free_spaces = vertical_summary[:, 1]
-    end_position = horizontal_summary[horizontal_summary[:, 1].argmax(), 1]
+    end_position = horizontal_summary[horizontal_summary[:, 0].argmax(), 1]
     start_position = end_position - horizontal_summary[:, 0].max() + 1
-    level = number_free_spaces[end_position]
+    level = horizontal_summary[:, 0].argmax()
 
     possible_moves = [start_position - 1, end_position + 1]
     valid_moves = [position for position in possible_moves if position in list(range(7))]
