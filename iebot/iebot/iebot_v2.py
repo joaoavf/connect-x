@@ -1,5 +1,5 @@
 import numpy as np
-from iebot import iebot
+from iebot.iebot_v1 import iebot_v1
 
 
 def process_interval(values, ids, player_mark, opp_mark):
@@ -94,6 +94,6 @@ def iebot_v2(obs, config):
     play = board.play()
 
     if play is None:
-        play = iebot(obs, config)
+        play = iebot_v1(obs, config)
 
     return int(play)
