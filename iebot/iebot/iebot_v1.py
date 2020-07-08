@@ -129,22 +129,20 @@ def vertical_play(vertical_summary):
     Returns:
     int : column number to be played"""
 
-    # TODO how to deal with the order and indexes
-    counters = vertical_summary[:, 0]
-    number_free_spaces = vertical_summary[:, 1]
+    index = np.flipud(vertical_summary[:, 0].argsort())  # Sorts columns indexes by descending order of sequence count
+    vertical_summary = vertical_summary[index]
+    counters, number_free_spaces = vertical_summary[:, 0], vertical_summary[:, 1]
 
-    for i, count_value in counters:
-        if count_value < 3:
-            if number_free_spaces[3]:
+    for i, count_value in enumerate(counters):
+        if number_free_spaces[index[i]]:
+            if count_value < 3 and number_free_spaces[3]:  # If not to block a Connect4, always play in the middle
                 return 3
-
-        if number_free_spaces[i]:
-            if count_value + number_free_spaces[i] >= 4:
-                return i
+            elif count_value + number_free_spaces[index[i]] >= 4:  # Continues or blocks valid sequence
+                return index[i]
 
     for i, count_value in counters:
-        if number_free_spaces[i]:
-            return i
+        if number_free_spaces[index[i]]:
+            return index[i]
 
 
 def play(board):
