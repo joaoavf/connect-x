@@ -94,3 +94,41 @@ def test_vertical_play():
     vertical_summary = get_vertical_summary(sample_board)
 
     assert vertical_play(vertical_summary=vertical_summary) == 3
+
+
+def test_play():
+    board_0 = np.array([[0, 0, 0, 2, 0, 0, 0],
+                        [0, 0, 0, 1, 0, 1, 1],
+                        [0, 0, 2, 2, 0, 2, 2],
+                        [0, 0, 1, 1, 0, 1, 2],
+                        [2, 0, 2, 2, 0, 1, 1],
+                        [2, 1, 1, 1, 0, 1, 2]])
+
+    assert play(board=board_0) == 4
+
+    board_1 = np.array([[0, 0, 0, 2, 0, 0, 0],
+                        [0, 0, 0, 1, 0, 1, 2],
+                        [0, 0, 2, 2, 0, 2, 2],
+                        [0, 0, 1, 1, 0, 1, 2],
+                        [2, 0, 2, 2, 0, 1, 1],
+                        [2, 0, 1, 1, 0, 1, 2]])
+
+    assert play(board=board_1) == 6
+
+    board_2 = np.array([[0, 0, 0, 2, 0, 0, 0],
+                        [0, 0, 0, 1, 0, 1, 0],
+                        [0, 0, 2, 2, 0, 2, 0],
+                        [0, 0, 1, 1, 0, 1, 2],
+                        [2, 0, 2, 2, 0, 1, 1],
+                        [2, 0, 1, 1, 0, 1, 2]])
+
+    assert play(board=board_2) == 0
+
+    board_3 = np.array([[0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 1, 0, 1, 0],
+                        [0, 0, 2, 2, 0, 2, 0],
+                        [0, 0, 1, 1, 0, 1, 2],
+                        [2, 0, 2, 2, 0, 1, 1],
+                        [2, 0, 1, 1, 0, 1, 2]])
+
+    assert play(board=board_3) == 3
