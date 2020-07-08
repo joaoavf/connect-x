@@ -16,8 +16,8 @@ def get_column_summary(column):
     column (List): Column of a Connect4 Game mapped by (0: Empty, 1: Player 1, 2: Player 2)
 
     Returns:
-    Tuple: (count (int)       : count of top_piece sequence,
-            free_spaces (int) : number of free cell slots in that column)"""
+    Tuple(count (int)       : count of top_piece sequence,
+          free_spaces (int) : number of free cell slots in that column)"""
 
     count, top_piece, free_spaces = 0, 0, 0
 
@@ -42,8 +42,8 @@ def get_vertical_summary(board):
     board (np.array): 6x7 board mapped by (0: Empty, 1: Player 1, 2: Player 2)
 
     Returns:
-    List: [List: (count (int)       : count of top_piece sequence,
-                  free_spaces (int) : number of free cell slots in that column)]"""
+    List[List[count (int)       : count of top_piece sequence,
+              free_spaces (int) : number of free cell slots in that column]]"""
 
     vertical_summary = []
 
@@ -60,8 +60,8 @@ def get_row_summary(row):
     row (List): Row of a Connect4 Game mapped by (0: Empty, 1: Player 1, 2: Player 2)
 
     Returns:
-    List: [max_count (int)              : max count achieved by horizontal sequence in this row,
-           max_end_position (int)       : end position for the max count find]"""
+    List[max_count (int)              : max count achieved by horizontal sequence in this row,
+         max_end_position (int)       : end position for the max count find]"""
 
     previous_cell_value, max_count, max_end_position, current_count = 0, 0, 0, 0
 
@@ -84,7 +84,7 @@ def get_horizontal_summary(board):
     """Analyses the horizontal status of a board.
 
     Parameters:
-     board (np.array): 6x7 board mapped by (0: Empty, 1: Player 1, 2: Player 2)
+    board (np.array): 6x7 board mapped by (0: Empty, 1: Player 1, 2: Player 2)
 
     Returns:
     List[List[max_count (int)              : max count achieved by horizontal sequence in this row,
@@ -96,9 +96,17 @@ def get_horizontal_summary(board):
 
 
 def horizontal_play(horizontal_summary, vertical_summary):
+    """Analyses the horizontal status of a board.
+
+    Parameters:
+    horizontal_summary (List[int, int]): Contains max_count and max_position by line
+    vertical_summary   (List[int, int]): Contains count and free_spaces by line
+
+    Returns:
+    int : column number to be played"""
+
     number_free_spaces = vertical_summary[:, 1]
     end_position = horizontal_summary[horizontal_summary[:, 1].argmax(), 1]
-
     start_position = end_position - horizontal_summary[:, 0].max() + 1
     level = number_free_spaces[end_position]
 
@@ -109,10 +117,18 @@ def horizontal_play(horizontal_summary, vertical_summary):
         if level == number_free_spaces[position] - 1:
             return position
 
-    return vertical_play(vertical_summary)
+    return vertical_play(vertical_summary)  # vertical_summary contains all other plays
 
 
 def vertical_play(vertical_summary):
+    """Analyses the vertical status of a board.
+
+    Parameters:
+    vertical_summary   (List[int, int]): Contains count and free_spaces by line
+
+    Returns:
+    int : column number to be played"""
+
     # TODO how to deal with the order and indexes
     counters = vertical_summary[:, 0]
     number_free_spaces = vertical_summary[:, 1]
@@ -132,6 +148,14 @@ def vertical_play(vertical_summary):
 
 
 def play(board):
+    """Decides which will be the next play given the board status.
+
+    Parameters:
+    board (np.array): 6x7 board mapped by (0: Empty, 1: Player 1, 2: Player 2)
+
+    Returns:
+    int : column number to be played"""
+
     vertical_summary = get_vertical_summary(board)
     horizontal_summary = get_horizontal_summary(board)
 
@@ -142,11 +166,16 @@ def play(board):
 
 
 def iebot_v1(obs, config):
+    """Transform received data into the necessary data types and calls the next play.
+
+    Parameters:
+    obs (?)    : All observed data from the game is contained here
+    config (?) : Mandatory field from Kaggle that contains setting for the game
+    Returns:
+    int : column number to be played"""
+
     board = translate_board(obs.board)
 
     play_position = play(board)
-
-    if board.sum() == 0:
-        return int(3)
 
     return int(play_position)
