@@ -26,31 +26,29 @@ class Node:
     def generate_plays(self):
         return [can_play(self.mask, column) for column in self.columns_map]
 
-    def run(self):
-        plays = self.generate_plays()
+    def create_children(self, plays, bit_board_map):
         for play in plays:
-            if play:
-                new_bit_board = self.bit_board | play
-                if connected_four(new_bit_board):
-                    return [1, 0, play]
-
-        for play in plays:
-            if play:
-                new_bit_board = self.bit_board | play
+            if play and self.recursiveness > 0:
                 new_mask = self.mask | play
-                if self.recursiveness > 0:
-                    self.children.append(Node(bit_board=new_bit_board ^ new_mask,
-                                              mask=new_mask,
-                                              columns_map=self.columns_map,
-                                              recursiveness=self.recursiveness - 1,
-                                              play=play))
+                self.children.append(Node(bit_board=bit_board_map[play] ^ new_mask,
+                                          mask=new_mask,
+                                          columns_map=self.columns_map,
+                                          recursiveness=self.recursiveness - 1,
+                                          play=play))
 
-        if not self.children:
-            return [0, 0, -1]
+    def evaluate_current_node(self, plays):
+        bit_board_map = {}
+        for play in plays:
+            if play:
+                bit_board_map[play] = self.bit_board | play
+                if connected_four(bit_board_map[play]):
+                    return [1, 0, play]  # No need for children if there is a connect 4 available
+        else:
+            self.create_children(plays, bit_board_map)
+            return [0, 0, -1]  # Result set in case there is no children and we need to propagate this
 
-        local_max = -100
-        local_min = 100
-        play = -1
+    def evaluate_children_results(self):
+        local_max, local_min, play = -100, 100, -1
 
         for child in self.children:
             if -child.value[0] > local_max:
@@ -60,7 +58,17 @@ class Node:
             if local_min > -child.value[0]:
                 local_min = -child.value[0]
 
+        # TODO evaluate if local_min is necessary after we finish implementation (It currently depends on IEBot V2)
         return [local_max, local_min, play]
+
+    def run(self):
+        plays = self.generate_plays()
+        result = self.evaluate_current_node(plays)  # Has children if node is not final and within recursiveness limit
+
+        if result[0] or not self.children:  # If connect 4 or if last node to be evaluated due to recursiveness limit
+            return result
+
+        return self.evaluate_children_results()  # This is where it runs the MiniMax part of the algorithm
 
 
 def can_play(bit_board, column):
@@ -70,21 +78,29 @@ def can_play(bit_board, column):
     return False
 
 
-def connected_four(position):
+def connected_four(bit_board):
+    """Evaluates if player bit board has made a connect 4.
+
+   Parameters:
+   bit_board (int): bit board representation of player pieces the game
+
+   Returns:
+   bool : True if the board has achieved a connect 4"""
+
     # Horizontal check
-    m = position & (position >> 7)
+    m = bit_board & (bit_board >> 7)
     if m & (m >> 14):
         return True
     # Diagonal \
-    m = position & (position >> 6)
+    m = bit_board & (bit_board >> 6)
     if m & (m >> 12):
         return True
     # Diagonal /
-    m = position & (position >> 8)
+    m = bit_board & (bit_board >> 8)
     if m & (m >> 16):
         return True
     # Vertical
-    m = position & (position >> 1)
+    m = bit_board & (bit_board >> 1)
     if m & (m >> 2):
         return True
     # Nothing found
@@ -92,17 +108,25 @@ def connected_four(position):
 
 
 def get_position_mask_bitmap(board, player):
+    """Transform a 6x7 board representation into bit boards.
+
+       Parameters:
+       board (np.array): 6x7 board mapped by (0: Empty, 1: Player 1, 2: Player 2)
+
+       Returns:
+       (int, int) : (bit board of player pieces, bit board of all pieces)"""
+
     # TODO fix deprecation warnings
     position, mask = b'', b''
-    # Start with right-most column
-    for j in range(6, -1, -1):
-        # Add 0-bits to sentinel
-        mask += b'0'
+
+    for j in range(6, -1, -1):  # Start with right-most column
+        mask += b'0'  # Add 0-bits to sentinel
         position += b'0'
-        # Start with bottom row
-        for i in range(0, 6):
+
+        for i in range(0, 6):  # Start with bottom row
             mask += [b'0', b'1'][board[i, j] != 0]
             position += [b'0', b'1'][board[i, j] == player]
+
     return int(position, 2), int(mask, 2)
 
 
