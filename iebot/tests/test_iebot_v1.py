@@ -59,3 +59,38 @@ def test_horizontal_play():
     vertical_summary = get_vertical_summary(sample_board)
 
     assert horizontal_play(horizontal_summary=horizontal_summary, vertical_summary=vertical_summary) == 4
+
+
+def test_vertical_play():
+    sample_board = np.array([[0, 0, 0, 2, 0, 0, 0],
+                             [0, 0, 0, 1, 0, 1, 2],
+                             [0, 0, 2, 2, 0, 2, 2],
+                             [0, 0, 1, 1, 0, 1, 2],
+                             [2, 0, 2, 2, 0, 1, 1],
+                             [2, 0, 1, 1, 0, 1, 2]])
+
+    vertical_summary = get_vertical_summary(sample_board)
+
+    assert vertical_play(vertical_summary=vertical_summary) == 6
+
+    sample_board = np.array([[0, 0, 0, 2, 0, 0, 0],
+                             [0, 0, 0, 1, 0, 1, 0],
+                             [0, 0, 2, 2, 0, 2, 0],
+                             [0, 0, 1, 1, 0, 1, 2],
+                             [2, 0, 2, 2, 0, 1, 1],
+                             [2, 0, 1, 1, 0, 1, 2]])
+
+    vertical_summary = get_vertical_summary(sample_board)
+
+    assert vertical_play(vertical_summary=vertical_summary) == 0
+
+    sample_board = np.array([[0, 0, 0, 0, 0, 0, 0],
+                             [0, 0, 0, 1, 0, 1, 0],
+                             [0, 0, 2, 2, 0, 2, 0],
+                             [0, 0, 1, 1, 0, 1, 2],
+                             [2, 0, 2, 2, 0, 1, 1],
+                             [2, 0, 1, 1, 0, 1, 2]])
+
+    vertical_summary = get_vertical_summary(sample_board)
+
+    assert vertical_play(vertical_summary=vertical_summary) == 3
