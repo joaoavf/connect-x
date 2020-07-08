@@ -1,6 +1,6 @@
 """
-This code is a Connect 4 agent based on simple procedural technology that searches for 3 connected pieces and play the
-4th, either to block its opponent or to make its own Connect 4 Sequence.
+This code is a Connect 4 agent based on if and else, hence If-Else Bot (IEBOT) that searches for 3 connected  pieces and
+play the 4th, either to block its opponent or to make its own Connect 4 Sequence.
 
 @author: João Alexandre Vaz Ferreira - joao.avf@gmail.com
 """
