@@ -62,13 +62,13 @@ class Node:
         return [local_max, local_min, play]
 
     def run(self):
-        plays = self.generate_plays()
+        plays = self.generate_plays()  # Calculate all possible moves for the player in this board position
         result = self.evaluate_current_node(plays)  # Has children if node is not final and within recursiveness limit
 
-        if result[0] or not self.children:  # If connect 4 or if last node to be evaluated due to recursiveness limit
+        if result[0] or not self.children:  # If connect 4 or if last node due to recursiveness limit
             return result
 
-        return self.evaluate_children_results()  # This is where it runs the MiniMax part of the algorithm
+        return self.evaluate_children_results()  # Runs MiniMax on children output
 
 
 def can_play(bit_board, column):
