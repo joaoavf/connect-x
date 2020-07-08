@@ -136,7 +136,6 @@ def iebot(obs, config):
     return int(play)
 
 
-
 def process_interval(values, ids, player_mark, opp_mark):
     output = []
     for i in range(len(values) - 3):
@@ -232,7 +231,6 @@ def iebot_v2(obs, config):
         play = iebot(obs, config)
 
     return int(play)
-
 
 
 def can_play(bit_board, column):
@@ -342,7 +340,8 @@ def column_from_play(play):
         if play in column:
             return i
 
-def iebot_v3(obs, config):
+
+def my_agent(obs, config):
     board = translate_board(obs.board)
     bit_board, mask = get_position_mask_bitmap(board, obs.mark)
 
