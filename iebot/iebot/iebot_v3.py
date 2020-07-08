@@ -26,25 +26,25 @@ class Node:
     def generate_plays(self):
         return [can_play(self.mask, column) for column in self.columns_map]
 
-    def create_children(self, plays, bit_board_map):
+    def create_children(self, plays):
         for play in plays:
             if play and self.recursiveness > 0:
+                new_bit_board = self.bit_board | play
                 new_mask = self.mask | play
-                self.children.append(Node(bit_board=bit_board_map[play] ^ new_mask,
+                self.children.append(Node(bit_board=new_bit_board ^ new_mask,
                                           mask=new_mask,
                                           columns_map=self.columns_map,
                                           recursiveness=self.recursiveness - 1,
                                           play=play))
 
     def evaluate_current_node(self, plays):
-        bit_board_map = {}
         for play in plays:
             if play:
-                bit_board_map[play] = self.bit_board | play
-                if connected_four(bit_board_map[play]):
+                new_bit_board = self.bit_board | play
+                if connected_four(new_bit_board):
                     return [1, 0, play]  # No need for children if there is a connect 4 available
         else:
-            self.create_children(plays, bit_board_map)
+            self.create_children(plays)
             return [0, 0, -1]  # Result set in case there is no children and we need to propagate this
 
     def evaluate_children_results(self):
