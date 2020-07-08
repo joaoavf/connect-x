@@ -37,38 +37,34 @@ class Node:
                                           recursiveness=self.recursiveness - 1,
                                           play=play))
 
-    def evaluate_current_node(self, plays):
-        for play in plays:
+    def alpha_beta_pruning(self, plays):
+        for play in plays:  # This is where the alpha-beta pruning happens, as it prevents the creation of new children
             if play:
                 new_bit_board = self.bit_board | play
                 if connected_four(new_bit_board):
-                    return [1, 0, play]  # No need for children if there is a connect 4 available
+                    return [1, play]  # No need for children if there is a connect 4 available
         else:
             self.create_children(plays)
-            return [0, 0, -1]  # Result set in case there is no children and we need to propagate this
+            return [0, -1]  # Result set in case there is no children and we need to propagate this
 
-    def evaluate_children_results(self):
-        local_max, local_min, play = -100, 100, -1
+    def negamax(self):
+        local_max, play = -100, -1
 
         for child in self.children:
             if -child.value[0] > local_max:
                 local_max = -child.value[0]
                 play = child.play
 
-            if local_min > -child.value[0]:
-                local_min = -child.value[0]
-
-        # TODO evaluate if local_min is necessary after we finish implementation (It currently depends on IEBot V2)
-        return [local_max, local_min, play]
+        return [local_max, play]
 
     def run(self):
         plays = self.generate_plays()  # Calculate all possible moves for the player in this board position
-        result = self.evaluate_current_node(plays)  # Has children if node is not final and within recursiveness limit
+        is_game_won, play_position = self.alpha_beta_pruning(plays)  # Has children if node is not final
 
-        if result[0] or not self.children:  # If connect 4 or if last node due to recursiveness limit
-            return result
-
-        return self.evaluate_children_results()  # Runs MiniMax on children output
+        if is_game_won or not self.children:  # If is game won or if last node due to recursiveness limit
+            return [is_game_won, play_position]
+        else:
+            return self.negamax()  # NegaMax on children output
 
 
 def can_play(bit_board, column):
@@ -171,12 +167,7 @@ def iebot_v3(obs, config):
 
     node = Node(bit_board, mask, recursiveness=recursiveness, columns_map=columns_map)
 
-    if node.value[0] < 0:
-        return int(iebot_v2(obs, config))
-
-    if node.value[0] > 0 or node.value[1] < 0:
-        play = column_from_play(node.value[2], columns_map)
-    else:
-        play = iebot_v2(obs, config)
+    # TODO implement heuristics
+    play = column_from_play(node.value[2], columns_map)
 
     return int(play)
