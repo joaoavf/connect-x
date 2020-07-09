@@ -151,19 +151,3 @@ def iebot_v4(obs, config):
     if _ == 0 and len(columns_map[3]) > 0:
         return 3
     return transform_play_to_column(play=play, columns_map=columns_map)
-
-
-if __name__ == '__main__':
-    board = np.array([[0, 0, 0, 2, 0, 0, 0],
-                      [0, 0, 0, 2, 0, 0, 0],
-                      [0, 0, 0, 2, 0, 0, 0],
-                      [0, 0, 0, 1, 0, 0, 1],
-                      [2, 0, 0, 2, 1, 1, 1],
-                      [2, 0, 0, 2, 1, 1, 1]])
-    opp = 2 if obs.mark == 1 else 1
-    bit_board, mask = get_position_mask_bitmap(board=board, player=2)
-    node = Node(bit_board=bit_board, mask=mask)
-    # TODO rewrite this to make more elegant the use of a list here
-    _, play = negamax_ab(node=node, depth=2, columns_map=generate_columns_map(mask=mask))
-
-    print(_, play)
