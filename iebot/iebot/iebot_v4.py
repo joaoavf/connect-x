@@ -5,19 +5,20 @@ def negamax_ab(node, depth, columns_map, alpha=-float('inf'), beta=float('inf'))
     if depth == 0 or node.value != 0:
         return [node.value, node.play]  # TODO add heuristic value of the node
 
-    value, play = -float('inf'), -1
-    for child in node.create_children(mask=node.mask, columns_map=columns_map):
+    max_value, play = -float('inf'), -1
+    for child in node.create_children(columns_map=columns_map):
 
         result = negamax_ab(node=child, depth=depth - 1, columns_map=columns_map, alpha=-beta, beta=-alpha)
-        # TODO rewrite this to make more elegant the use of a list here
-        result[0] = -result[0]
-        value = max(value, result[0])
+        if result[0] > max_value:
+            max_value = result[0]
+            play = child.play
 
-        play = node.play
-        alpha = max(alpha, value)
+        # alpha = max(alpha, max_value)
+
         if alpha >= beta:
             break
-    return [value, play]
+
+    return [max_value, play]
 
 
 class Node:
@@ -27,26 +28,14 @@ class Node:
         self.play = play
         self.value = connected_four(self.bit_board)
 
-    def create_children(self, mask, columns_map):
-        plays = generate_plays(mask, columns_map)
+    def create_children(self, columns_map):
+        plays = generate_plays(self.mask, columns_map)
         for play in plays:
-            new_bit_board = self.bit_board | play
+            new_bit_board = (self.mask ^ self.bit_board) | play
             new_mask = self.mask | play
-            yield Node(bit_board=new_bit_board ^ new_mask,
+            yield Node(bit_board=new_bit_board,
                        mask=new_mask,
                        play=play)
-
-
-def can_play(bit_board, column):
-    for element in column:
-        if element & bit_board == 0:
-            return element
-    return False
-
-
-def generate_plays(mask, columns_map):
-    plays = [can_play(mask, column) for column in columns_map]
-    return [play for play in plays if play]  # Remove cases of play = 0
 
 
 def iebot_v4(obs, config):
@@ -54,8 +43,16 @@ def iebot_v4(obs, config):
     bit_board, mask = get_position_mask_bitmap(board, obs.mark)
     columns_map = generate_columns_map(mask)
 
-    node = Node(bit_board, mask)
+    node = Node(bit_board ^ mask, mask)
     # TODO rewrite this to make more elegant the use of a list here
     _, play = negamax_ab(node=node, depth=5, columns_map=columns_map)
-
     return transform_play_to_column(play=play, columns_map=columns_map)
+
+
+if __name__ == '__main__':
+    bit_board = 0
+    mask = 7
+    node = Node(bit_board=bit_board, mask=mask)  # +268435456)
+    # TODO rewrite this to make more elegant the use of a list here
+    _, play = negamax_ab(node=node, depth=2, columns_map=generate_columns_map(mask=mask))
+    print(_, play)
