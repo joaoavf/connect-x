@@ -13,12 +13,12 @@ def negamax_ab(node, depth, columns_map, alpha=-float('inf'), beta=float('inf'))
             max_value = result[0]
             play = child.play
 
-        # alpha = max(alpha, max_value)
+            alpha = max(alpha, max_value)
 
         if alpha >= beta:
             break
 
-    return [max_value, play]
+    return [-max_value, play]
 
 
 class Node:
@@ -48,11 +48,3 @@ def iebot_v4(obs, config):
     _, play = negamax_ab(node=node, depth=5, columns_map=columns_map)
     return transform_play_to_column(play=play, columns_map=columns_map)
 
-
-if __name__ == '__main__':
-    bit_board = 0
-    mask = 7
-    node = Node(bit_board=bit_board, mask=mask)  # +268435456)
-    # TODO rewrite this to make more elegant the use of a list here
-    _, play = negamax_ab(node=node, depth=2, columns_map=generate_columns_map(mask=mask))
-    print(_, play)
