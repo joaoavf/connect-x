@@ -8,7 +8,6 @@ http://blog.gamesolver.org/
 @author: João Alexandre Vaz Ferreira - joao.avf@gmail.com
 """
 
-from iebot.iebot_v2 import iebot_v2
 from iebot.utils import translate_board
 
 
@@ -58,6 +57,13 @@ class Node:
         return [local_max, play]
 
     def run(self):
+        """First it checks all the possible moves in the game, then it creates the children of nodes that will ever be
+        possibly played.
+
+        Returns:
+        List[int, int] : [is_game_won   : 1=won | 0=tie | -1=loss,
+                          play_position : position in binary board representation]"""
+
         plays = self.generate_plays()  # Calculate all possible moves for the player in this board position
         is_game_won, play_position = self.alpha_beta_pruning(plays)  # Has children if node is not final
 
@@ -65,6 +71,16 @@ class Node:
             return [is_game_won, play_position]
         else:
             return self.negamax()  # NegaMax on children output
+
+    def get_column_to_play(self):
+        """Return position of the column where the play was made..
+
+           Returns:
+           int : column position"""
+
+        for index, column in enumerate(self.columns_map):
+            if self.play in column:
+                return index
 
 
 def can_play(bit_board, column):
@@ -116,7 +132,7 @@ def get_position_mask_bitmap(board, player):
     position, mask = b'', b''
 
     for j in range(6, -1, -1):  # Start with right-most column
-        mask += b'0'  # Add 0-bits to sentinel
+        mask += b'0'  # Add 0-bits to sentinel # TODO understand why?
         position += b'0'
 
         for i in range(0, 6):  # Start with bottom row
@@ -127,21 +143,23 @@ def get_position_mask_bitmap(board, player):
 
 
 def generate_columns_map(mask):
-    position_map = [2 ** i for i in range(49)]
+    """Generates all valid moves per column on the Connect4 Board.
+
+    Parameters:
+    mask (int): binary representation (bit board) of all pieces
+
+    Returns:
+    List[List[int, ...]] : each nested listed correspond to column and its valid pieces left in binary representation"""
+
+    position_map = [2 ** i for i in range(49)]  # List of a binary representation of individual pieces in the board
 
     columns_map = []
     for column_number in range(7):
-        column_values = position_map[7 * column_number: 7 * column_number + 6]
-        column_values = [cell_value for cell_value in column_values if mask & cell_value == 0]
+        column_values = position_map[7 * column_number: 7 * column_number + 6]  # Minus extra cell on top of the board
+        column_values = [cell_value for cell_value in column_values if mask & cell_value == 0]  # Removing full columns
         columns_map.append(column_values)
 
     return columns_map
-
-
-def column_from_play(play, columns_map):
-    for i, column in enumerate(columns_map):
-        if play in column:
-            return i
 
 
 def calculate_recursiveness(board):
@@ -168,6 +186,4 @@ def iebot_v3(obs, config):
     node = Node(bit_board, mask, recursiveness=recursiveness, columns_map=columns_map)
 
     # TODO implement heuristics
-    play = column_from_play(node.value[2], columns_map)
-
-    return int(play)
+    return node.get_column_to_play()
