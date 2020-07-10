@@ -117,6 +117,9 @@ def negamax_ab(node, depth, columns_map, alpha=-float('inf'), beta=float('inf'))
         if alpha >= beta:
             break
 
+    if play == -1:  # If ran out of pieces in the board and game is tied
+        return [0, play]
+
     return [max_value, play]
 
 
@@ -145,8 +148,7 @@ def my_agent(obs, config):
     bit_board, mask = get_position_mask_bitmap(board, obs.mark)
     columns_map = generate_columns_map(mask)
 
-    print(bit_board, mask)
     node = Node(bit_board ^ mask, mask)
 
-    _, play = negamax_ab(node=node, depth=7, columns_map=columns_map)
+    _, play = negamax_ab(node=node, depth=8, columns_map=columns_map)
     return transform_play_to_column(play=play, columns_map=columns_map)

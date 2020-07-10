@@ -3,9 +3,10 @@ from iebot.utils import *
 
 def negamax_ab(node, depth, columns_map, alpha=-float('inf'), beta=float('inf')):
     if depth == 0 or node.value != 0:
-        return [-node.value, node.play]
+        return [-node.value, node.play]  # TODO add heuristic value of the node
 
     max_value, play = -float('inf'), -1
+
     for child in node.create_children(columns_map=columns_map):
 
         result = negamax_ab(node=child, depth=depth - 1, columns_map=columns_map, alpha=-beta, beta=-alpha)
@@ -18,7 +19,7 @@ def negamax_ab(node, depth, columns_map, alpha=-float('inf'), beta=float('inf'))
         if alpha >= beta:
             break
 
-    if play != -1:  # If ran out of pieces in the board and game is tied
+    if play == -1:  # If ran out of pieces in the board and game is tied
         return [0, play]
     else:
         return [max_value, play]
