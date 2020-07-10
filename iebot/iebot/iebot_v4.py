@@ -18,7 +18,10 @@ def negamax_ab(node, depth, columns_map, alpha=-float('inf'), beta=float('inf'))
         if alpha >= beta:
             break
 
-    return [max_value, play]
+    if play != -1:  # If ran out of pieces in the board and game is tied
+        return [0, play]
+    else:
+        return [max_value, play]
 
 
 class Node:
