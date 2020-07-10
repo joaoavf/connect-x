@@ -3,7 +3,7 @@ from iebot.utils import *
 
 def negamax_ab(node, depth, columns_map, alpha=-float('inf'), beta=float('inf')):
     if depth == 0 or node.value != 0:
-        return [-node.value, node.play]  # TODO add heuristic value of the node
+        return [-node.value, node.play]
 
     max_value, play = -float('inf'), -1
     for child in node.create_children(columns_map=columns_map):
@@ -27,11 +27,10 @@ class Node:
         self.mask = mask
         self.play = play
         self.value = connected_four(self.bit_board)
-        self.children = []
 
     def create_children(self, columns_map):
         plays = generate_plays(self.mask, columns_map)
-        # TODO randomize here to favor median on the list
+        plays = [plays.pop(i // 2) for i in reversed(range(len(plays)))]  # Order by the center
 
         for play in plays:
             new_bit_board = (self.mask ^ self.bit_board) | play
@@ -48,6 +47,6 @@ def iebot_v4(obs, config):
     columns_map = generate_columns_map(mask)
 
     node = Node(bit_board ^ mask, mask)
-    # TODO rewrite this to make more elegant the use of a list here
-    _, play = negamax_ab(node=node, depth=10, columns_map=columns_map)
+
+    _, play = negamax_ab(node=node, depth=8, columns_map=columns_map)
     return transform_play_to_column(play=play, columns_map=columns_map)
