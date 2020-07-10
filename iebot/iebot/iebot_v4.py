@@ -3,22 +3,22 @@ from iebot.utils import *
 
 def negamax_ab(node, depth, columns_map, alpha=-float('inf'), beta=float('inf')):
     if depth == 0 or node.value != 0:
-        return [node.value, node.play]  # TODO add heuristic value of the node
+        return [-node.value, node.play]  # TODO add heuristic value of the node
 
     max_value, play = -float('inf'), -1
     for child in node.create_children(columns_map=columns_map):
 
         result = negamax_ab(node=child, depth=depth - 1, columns_map=columns_map, alpha=-beta, beta=-alpha)
-        if result[0] > max_value:
-            max_value = result[0]
-            play = child.play
 
+        if -result[0] > max_value:
+            max_value = -result[0]
+            play = child.play
             alpha = max(alpha, max_value)
 
         if alpha >= beta:
             break
 
-    return [-max_value, play]
+    return [max_value, play]
 
 
 class Node:
@@ -27,15 +27,19 @@ class Node:
         self.mask = mask
         self.play = play
         self.value = connected_four(self.bit_board)
+        self.children = []
 
     def create_children(self, columns_map):
         plays = generate_plays(self.mask, columns_map)
+        # TODO randomize here to favor median on the list
+
         for play in plays:
             new_bit_board = (self.mask ^ self.bit_board) | play
             new_mask = self.mask | play
-            yield Node(bit_board=new_bit_board,
-                       mask=new_mask,
-                       play=play)
+            node = Node(bit_board=new_bit_board,
+                        mask=new_mask,
+                        play=play)
+            yield node
 
 
 def iebot_v4(obs, config):
@@ -45,6 +49,5 @@ def iebot_v4(obs, config):
 
     node = Node(bit_board ^ mask, mask)
     # TODO rewrite this to make more elegant the use of a list here
-    _, play = negamax_ab(node=node, depth=5, columns_map=columns_map)
+    _, play = negamax_ab(node=node, depth=10, columns_map=columns_map)
     return transform_play_to_column(play=play, columns_map=columns_map)
-
