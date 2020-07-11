@@ -152,5 +152,5 @@ def my_agent(obs, config):
 
     node = Node(bit_board ^ mask, mask)
 
-    _, play = negamax_ab(node=node, depth=8, columns_map=columns_map)
+    _, play = negamax_ab(node=node, depth=7, columns_map=columns_map)
     return transform_play_to_column(play=play, columns_map=columns_map)
