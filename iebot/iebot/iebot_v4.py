@@ -1,3 +1,8 @@
+"""
+This version was refactored and implemented alpha beta pruning, which increase nodes considered by the bot from 5 to 7.
+
+@author: João Alexandre Vaz Ferreira - joao.avf@gmail.com
+"""
 from iebot.utils import *
 
 
