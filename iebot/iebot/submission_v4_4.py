@@ -102,7 +102,7 @@ def generate_plays(mask, columns_map):
 
 def negamax_ab(node, depth, columns_map, alpha=-float('inf'), beta=float('inf'), on=True):
     if depth == 0 or node.value != 0:
-        return [-node.value - (-0.01 * depth), node.play]  # Giving higher score to higher depth (less shallow)
+        return [-node.value - (0.01 * depth), node.play]  # Giving higher score to higher depth (less shallow)
     # TODO rewrite code so more depth != more shallow
 
     max_value, play = -float('inf'), -1
