@@ -1,16 +1,15 @@
 from iebot.utils import *
 
 
-def negamax_ab(node, depth, columns_map, alpha=-float('inf'), beta=float('inf'), on=True):
-    if depth == 0 or node.value != 0:
-        return [-node.value - (0.01 * depth), node.play]  # Giving higher score to higher depth (less shallow)
-    # TODO rewrite code so more depth != more shallow
+def negamax_ab(node, max_depth, columns_map, alpha=-float('inf'), beta=float('inf')):
+    if max_depth == 0 or node.value != 0:
+        return [-node.value - (0.01 * max_depth), node.play]  # Giving higher score to shallow nodes
 
     max_value, play = -float('inf'), -1
 
     for child in node.create_children(columns_map=columns_map):
 
-        result = negamax_ab(node=child, depth=depth - 1, columns_map=columns_map, alpha=-beta, beta=-alpha)
+        result = negamax_ab(node=child, max_depth=max_depth - 1, columns_map=columns_map, alpha=-beta, beta=-alpha)
 
         if -result[0] > max_value:
             max_value = -result[0]
@@ -20,7 +19,7 @@ def negamax_ab(node, depth, columns_map, alpha=-float('inf'), beta=float('inf'),
         if alpha >= beta:
             break
 
-    if play == -1:  # If ran out of pieces in the board and game is tied
+    if play == -1:  # Happens only when there are no more pieces left and game is tied
         return [0, play]
     else:
         return [max_value, play]
@@ -53,5 +52,5 @@ def iebot_v4(obs, config):
 
     node = Node(bit_board ^ mask, mask)
 
-    _, play = negamax_ab(node=node, depth=8, columns_map=columns_map)
+    _, play = negamax_ab(node=node, max_depth=8, columns_map=columns_map)
     return transform_play_to_column(play=play, columns_map=columns_map)
