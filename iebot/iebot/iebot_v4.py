@@ -1,9 +1,10 @@
 from iebot.utils import *
 
 
-def negamax_ab(node, depth, columns_map, alpha=-float('inf'), beta=float('inf')):
+def negamax_ab(node, depth, columns_map, alpha=-float('inf'), beta=float('inf'), on=True):
     if depth == 0 or node.value != 0:
-        return [-node.value, node.play]  # TODO add heuristic value of the node
+        return [-node.value * (-0.01 * depth), node.play]  # Giving higher score to higher depth (less shallow)
+    # TODO rewrite code so more depth != more shallow
 
     max_value, play = -float('inf'), -1
 
