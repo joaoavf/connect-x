@@ -6,7 +6,10 @@ play the 4th, either to block its opponent or to make its own Connect 4 Sequence
 """
 
 import numpy as np
-from iebot.utils import translate_board
+
+
+def translate_board(board):
+    return np.array(board).reshape(6, 7)
 
 
 def get_column_summary(column):
@@ -134,14 +137,14 @@ def vertical_play(vertical_summary):
     counters, number_free_spaces = vertical_summary[:, 0], vertical_summary[:, 1]
 
     for i, count_value in enumerate(counters):
-        if number_free_spaces[index[i]]:
-            if count_value < 3 and number_free_spaces[3]:  # If not to block a Connect4, always play in the middle
+        if number_free_spaces[i]:
+            if count_value < 3 and number_free_spaces[index.tolist().index(3)]:  # If not Connect4, always play middle
                 return 3
-            elif count_value + number_free_spaces[index[i]] >= 4:  # Continues or blocks valid sequence
+            elif count_value + number_free_spaces[i] >= 4:  # Continues or blocks valid sequence
                 return index[i]
 
     for i, count_value in counters:
-        if number_free_spaces[index[i]]:
+        if number_free_spaces[i]:
             return index[i]
 
 
@@ -163,7 +166,7 @@ def play(board):
     return vertical_play(vertical_summary)
 
 
-def iebot_v1(obs, config):
+def my_agent(obs, config):
     """Transform received data into the necessary data types and calls the next play.
 
     Parameters:

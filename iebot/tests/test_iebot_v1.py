@@ -132,3 +132,11 @@ def test_play():
                         [2, 0, 1, 1, 0, 1, 2]])
 
     assert play(board=board_3) == 3
+
+    board_4 = np.array([[0, 0, 0, 0, 0, 0, 0] * 6])
+
+    assert play(board=board_4) == 3
+
+    board_5 = np.array([[0, 0, 0, 1, 0, 0, 0], [0, 0, 0, 2, 0, 0, 0]] * 3)
+
+    assert play(board=board_5) != 3

@@ -134,14 +134,14 @@ def vertical_play(vertical_summary):
     counters, number_free_spaces = vertical_summary[:, 0], vertical_summary[:, 1]
 
     for i, count_value in enumerate(counters):
-        if number_free_spaces[index[i]]:
-            if count_value < 3 and number_free_spaces[3]:  # If not to block a Connect4, always play in the middle
+        if number_free_spaces[i]:
+            if count_value < 3 and number_free_spaces[index.tolist().index(3)]:  # If not Connect4, always play middle
                 return 3
-            elif count_value + number_free_spaces[index[i]] >= 4:  # Continues or blocks valid sequence
+            elif count_value + number_free_spaces[i] >= 4:  # Continues or blocks valid sequence
                 return index[i]
 
     for i, count_value in counters:
-        if number_free_spaces[index[i]]:
+        if number_free_spaces[i]:
             return index[i]
 
 
