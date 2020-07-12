@@ -9,6 +9,7 @@ def translate_board(board):
 
     Returns:
     (np.array): 6x7 board mapped by (0: Empty, 1: Player 1, 2: Player 2)"""
+
     return np.array(board).reshape(6, 7)
 
 
@@ -51,79 +52,47 @@ def get_position_mask_bitmap(board, player):
     (int, int) : (bit board of player pieces, bit board of all pieces)"""
 
     # TODO fix deprecation warnings
-    position, mask = b'', b''
+    player_pieces, mask = b'', b''
 
     for j in range(6, -1, -1):  # Start with right-most column
-        mask += b'0'  # Add 0-bits to sentinel # TODO understand why?
-        position += b'0'
+        mask += b'0'  # Add 0-bits to sentinel
+        player_pieces += b'0'
 
         for i in range(0, 6):  # Start with bottom row
             mask += [b'0', b'1'][board[i, j] != 0]
-            position += [b'0', b'1'][board[i, j] == player]
+            player_pieces += [b'0', b'1'][board[i, j] == player]
 
-    return int(position, 2), int(mask, 2)
+    return int(player_pieces, 2), int(mask, 2)
 
 
-def generate_columns_map(mask):
-    """Generates all valid moves per column on the Connect4 Board.
+def generate_plays(mask):
+    """Generate a list with all the possible plays in a given round.
 
     Parameters:
     mask (int): binary representation (bit board) of all pieces
 
     Returns:
-    List[List[int, ...]] : each nested listed correspond to column and its valid pieces left in binary representation"""
+    List : bit value of all available plays"""
 
     position_map = [2 ** i for i in range(49)]  # List of a binary representation of individual pieces in the board
 
-    columns_map = []
+    valid_plays = []
     for column_number in range(7):
         column_values = position_map[7 * column_number: 7 * column_number + 6]  # Minus extra cell on top of the board
-        column_values = [value for value in column_values if mask & value == 0]  # Removing full columns
-        columns_map.append(column_values)
+        for value in column_values:
+            if mask & value == 0:
+                valid_plays.append(value)
+                break
+    return valid_plays
 
-    return columns_map
 
-
-def transform_play_to_column(play, columns_map):
+def transform_play_to_column(play):
     """Return position of the column where the play was made.
 
     Parameters:
-    play         (int): bit board representation of next play
-    columns_map (list): maps bit board cells to their respective columns and position
+    play         (int): bit board representation of a piece
 
     Returns:
     int : column position"""
 
-    for index, column in enumerate(columns_map):
-        if play in column:
-            return index
-
-
-def can_play(mask, column):
-    """Evaluate if there is an available play to be made in the given column.
-
-    Parameters:
-    mask         (int): binary representation (bit board) of all pieces
-    column      (list): bit board cell representations for a given column
-
-    Returns:
-    int : 0 if no element was found else the element number"""
-
-    for element in column:
-        if element & mask == 0:
-            return element
-    return 0
-
-
-def generate_plays(mask, columns_map):
-    """Generate a list with all the possible plays in a given round.
-
-    Parameters:
-    mask          (int): binary representation (bit board) of all pieces
-    columns_map  (list): maps bit board cells to their respective columns and position
-
-    Returns:
-    list : column position"""
-
-    plays = [can_play(mask, column) for column in columns_map]
-    return [play for play in plays if play]  # Remove cases of play = 0
+    return [2 ** i for i in range(49)].index(play) // 7
