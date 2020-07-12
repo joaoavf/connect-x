@@ -3,38 +3,30 @@ This version is intended to implement transposition tables.
 
 @author: João Alexandre Vaz Ferreira - joao.avf@gmail.com
 """
+
+from random import choice
+from time import time
+import pandas as pd
 from iebot.utils import *
 from iebot.tranposition_table_8_ply import tranposition_table
 
 
-def negamax_ab(node, max_depth, alpha=-float('inf'), beta=float('inf'), root=False):
-    if max_depth == 0 or node.value != 0:
-        return [-node.value - (0.01 * max_depth), node.play]  # Giving higher score to shallow nodes
-    elif not root and (node.bit_board, node.mask) in tranposition_table:
-        return [-tranposition_table[(node.bit_board, node.mask)], node.play]
+def manager(current_node, max_time):
+    t0 = time()
+    results = []
+    while time() - t0 < max_time:
+        results.append(tree_search(current_node))
+    df = pd.DataFrame(results, columns=['value', 'play'])
+    return df.groupby('play').mean().idxmax()[0]
 
-    max_value, play = -float('inf'), -1
 
-    for child in node.create_children():
+def tree_search(node, depth=0):
+    if node.value != 0 or node.mask == 279258638311359 and depth != 0:
+        return [-node.value*10 - (0.01 * depth), node.play]  # Giving higher score to shallow nodes
+    child = node.random_child()
+    result = tree_search(node=child, depth=depth + 1)
 
-        result = negamax_ab(node=child, max_depth=max_depth - 1, alpha=-beta, beta=-alpha)
-
-        if -result[0] > max_value:
-            max_value = -result[0]
-            play = child.play
-            alpha = max(alpha, max_value)
-
-        if alpha >= beta:
-            break
-
-    if play == -1:  # Happens only when there are no more pieces left and game is tied
-        tranposition_table[(node.bit_board ^ node.mask, node.mask)] = max_value
-        return [0, play]
-
-    elif max_value != 0:
-        tranposition_table[(node.bit_board ^ node.mask, node.mask)] = max_value
-
-    return [max_value, play]
+    return -result[0], child.play
 
 
 class Node:
@@ -42,7 +34,10 @@ class Node:
         self.bit_board = bit_board
         self.mask = mask
         self.play = play
-        self.value = connected_four(self.bit_board)
+        if (self.bit_board, self.mask) in tranposition_table:
+            self.value = tranposition_table[(self.bit_board, self.mask)]
+        else:
+            self.value = connected_four(self.bit_board)
 
     def create_children(self):
         plays = generate_plays(self.mask)
@@ -56,6 +51,17 @@ class Node:
                         play=play)
             yield node
 
+    def random_child(self):
+        plays = generate_plays(self.mask)
+        play = choice(plays)
+
+        new_bit_board = (self.mask ^ self.bit_board) | play
+        new_mask = self.mask | play
+        node = Node(bit_board=new_bit_board,
+                    mask=new_mask,
+                    play=play)
+        return node
+
 
 def iebot_v6(obs, config):
     board = translate_board(obs.board)
@@ -63,5 +69,6 @@ def iebot_v6(obs, config):
 
     node = Node(bit_board ^ mask, mask)
 
-    _, play = negamax_ab(node=node, max_depth=8, root=True)
+    play = manager(current_node=node, max_time=1)
+
     return transform_play_to_column(play=play)
