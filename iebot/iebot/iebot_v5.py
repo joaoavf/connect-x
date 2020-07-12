@@ -7,10 +7,10 @@ from iebot.utils import *
 from iebot.tranposition_table_8_ply import tranposition_table
 
 
-def negamax_ab(node, max_depth, columns_map, alpha=-float('inf'), beta=float('inf')):
+def negamax_ab(node, max_depth, columns_map, alpha=-float('inf'), beta=float('inf'), root=False):
     if max_depth == 0 or node.value != 0:
         return [-node.value - (0.01 * max_depth), node.play]  # Giving higher score to shallow nodes
-    elif (node.bit_board, node.mask) in tranposition_table:
+    elif not root and (node.bit_board, node.mask) in tranposition_table:
         return [-tranposition_table[(node.bit_board, node.mask)], node.play]
 
     max_value, play = -float('inf'), -1
@@ -28,9 +28,13 @@ def negamax_ab(node, max_depth, columns_map, alpha=-float('inf'), beta=float('in
             break
 
     if play == -1:  # Happens only when there are no more pieces left and game is tied
+        tranposition_table[(node.bit_board ^ node.mask, node.mask)] = max_value
         return [0, play]
-    else:
-        return [max_value, play]
+
+    elif max_value != 0:
+        tranposition_table[(node.bit_board ^ node.mask, node.mask)] = max_value
+
+    return [max_value, play]
 
 
 class Node:
@@ -60,5 +64,5 @@ def iebot_v5(obs, config):
 
     node = Node(bit_board ^ mask, mask)
 
-    _, play = negamax_ab(node=node, max_depth=8, columns_map=columns_map)
+    _, play = negamax_ab(node=node, max_depth=8, columns_map=columns_map, root=True)
     return transform_play_to_column(play=play, columns_map=columns_map)
