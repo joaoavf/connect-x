@@ -20,11 +20,14 @@ def manager(current_node, max_time):
     return df.groupby('play').mean().idxmax()[0]
 
 
-def tree_search(node, depth=0):
-    if node.value != 0 or node.mask == 279258638311359 and depth != 0:
-        return [-node.value*10 - (0.01 * depth), node.play]  # Giving higher score to shallow nodes
+def tree_search(node):
+    if node.value != 0 or node.mask == 279258638311359:
+        return [-node.value, node.play]  # Giving higher score to shallow nodes
+    elif node.play != 0 and (node.bit_board, node.mask) in tranposition_table:
+        return [-tranposition_table[(node.bit_board, node.mask)], node.play]
+
     child = node.random_child()
-    result = tree_search(node=child, depth=depth + 1)
+    result = tree_search(node=child)
 
     return -result[0], child.play
 
@@ -34,22 +37,7 @@ class Node:
         self.bit_board = bit_board
         self.mask = mask
         self.play = play
-        if (self.bit_board, self.mask) in tranposition_table:
-            self.value = tranposition_table[(self.bit_board, self.mask)]
-        else:
-            self.value = connected_four(self.bit_board)
-
-    def create_children(self):
-        plays = generate_plays(self.mask)
-        plays = [plays.pop(i // 2) for i in reversed(range(len(plays)))]  # Order by the center
-
-        for play in plays:
-            new_bit_board = (self.mask ^ self.bit_board) | play
-            new_mask = self.mask | play
-            node = Node(bit_board=new_bit_board,
-                        mask=new_mask,
-                        play=play)
-            yield node
+        self.value = connected_four(self.bit_board)
 
     def random_child(self):
         plays = generate_plays(self.mask)
