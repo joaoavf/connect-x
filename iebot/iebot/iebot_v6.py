@@ -1,10 +1,8 @@
 """
 This version is intended to implement transposition tables.
-
 @author: João Alexandre Vaz Ferreira - joao.avf@gmail.com
 """
 
-from random import choice
 from random import shuffle
 from time import time
 import pandas as pd
@@ -19,23 +17,19 @@ def manager(current_node, max_time):
     while time() - t0 < max_time:
         results.append(tree_search(current_node))
     df = pd.DataFrame(results, columns=['value', 'play'])
-    #print(df)
-    #print( df.groupby('play').agg(['mean', 'count', 'std']))
+    # print(df)
+    # print( df.groupby('play').agg(['mean', 'count', 'std']))
     return df.groupby('play').mean().idxmax()[0]
 
 
 def tree_search(node):
-    if node.value != 0 or node.mask == 279258638311359:
     if node.value != 0 or node.mask == 279258638311359:  # Find terminal nodes
         node.score += node.value
         node.count += 1
         return [-node.value, node.play]  # Giving higher score to shallow nodes
-    elif node.play != 0 and (node.bit_board, node.mask) in tranposition_table:
-        return [-tranposition_table[(node.bit_board, node.mask)], node.play]
     # elif node.play != 0 and (node.bit_board, node.mask) in tranposition_table:
-        # return [-tranposition_table[(node.bit_board, node.mask)], node.play]
+    # return [-tranposition_table[(node.bit_board, node.mask)], node.play]
 
-    child = node.random_child()
     child = node.explore_or_exploit()
     result = tree_search(node=child)
 
@@ -62,9 +56,6 @@ class Node:
         self.count = 0
         shuffle(self.plays)  # Inplace list shuffle
 
-    def random_child(self):
-        plays = generate_plays(self.mask)
-        play = choice(plays)
     def explore_or_exploit(self):
         if self.plays:
             return self.new_child()
@@ -90,8 +81,6 @@ def iebot_v6(obs, config):
 
     node = Node(bit_board ^ mask, mask)
 
-    play = manager(current_node=node, max_time=1)
     play = manager(current_node=node, max_time=3)
 
     return transform_play_to_column(play=play)
-
