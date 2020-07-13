@@ -5,13 +5,16 @@ This version is intended to implement transposition tables.
 
 from random import shuffle
 from time import time
-import pandas as pd
-from iebot.utils import *
-from iebot.tranposition_table_8_ply import tranposition_table
 import math
+import pickle
 
 global external_dict
-external_dict = {}
+
+with open('external_dict.pickle', 'rb') as handle:
+    external_dict = pickle.load(handle)
+
+from iebot.utils import *
+
 
 def manager(current_node, max_time):
     t0 = time()
