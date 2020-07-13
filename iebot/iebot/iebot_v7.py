@@ -1,5 +1,5 @@
 """
-This version is intended to implement transposition tables.
+Monte carlo forests
 
 @author: João Alexandre Vaz Ferreira - joao.avf@gmail.com
 """
