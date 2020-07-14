@@ -6,6 +6,9 @@ This version is intended to implement transposition tables.
 from random import shuffle
 from time import time
 import math
+from iebot.utils import *
+
+external_dict = {}
 
 
 def manager(current_node, max_time):
@@ -35,7 +38,7 @@ def tree_search(node):
     child = node.explore_or_exploit()
     result = tree_search(node=child)
 
-    node.score += result[0]
+    node.score += int(result[0] == 1)
     node.count += 1
 
     return -result[0], child.play
