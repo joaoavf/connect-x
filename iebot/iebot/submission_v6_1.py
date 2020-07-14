@@ -196,7 +196,6 @@ def iebot_v6(obs, config):
 
     try:
         try:
-            print([c.play for c in global_node.children])
             node_selection = [child.bit_board == (bit_board ^ mask) and child.mask == mask for child in
                               global_node.children]
 
