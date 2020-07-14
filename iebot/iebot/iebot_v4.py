@@ -6,15 +6,15 @@ This version was refactored and implemented alpha beta pruning, which increase n
 from iebot.utils import *
 
 
-def negamax_ab(node, max_depth, columns_map, alpha=-float('inf'), beta=float('inf')):
+def negamax_ab(node, max_depth, alpha=-float('inf'), beta=float('inf')):
     if max_depth == 0 or node.value != 0:
         return [-node.value - (0.01 * max_depth), node.play]  # Giving higher score to shallow nodes
 
     max_value, play = -float('inf'), -1
 
-    for child in node.create_children(columns_map=columns_map):
+    for child in node.create_children():
 
-        result = negamax_ab(node=child, max_depth=max_depth - 1, columns_map=columns_map, alpha=-beta, beta=-alpha)
+        result = negamax_ab(node=child, max_depth=max_depth - 1, alpha=-beta, beta=-alpha)
 
         if -result[0] > max_value:
             max_value = -result[0]
@@ -37,8 +37,8 @@ class Node:
         self.play = play
         self.value = connected_four(self.bit_board)
 
-    def create_children(self, columns_map):
-        plays = generate_plays(self.mask, columns_map)
+    def create_children(self):
+        plays = generate_plays(self.mask)
         plays = [plays.pop(i // 2) for i in reversed(range(len(plays)))]  # Order by the center
 
         for play in plays:
@@ -53,9 +53,8 @@ class Node:
 def iebot_v4(obs, config):
     board = translate_board(obs.board)
     bit_board, mask = get_position_mask_bitmap(board, obs.mark)
-    columns_map = generate_columns_map(mask)
 
     node = Node(bit_board ^ mask, mask)
 
-    _, play = negamax_ab(node=node, max_depth=8, columns_map=columns_map)
-    return transform_play_to_column(play=play, columns_map=columns_map)
+    _, play = negamax_ab(node=node, max_depth=8)
+    return transform_play_to_column(play=play)
