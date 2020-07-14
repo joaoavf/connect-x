@@ -8,7 +8,7 @@ from time import time
 import math
 import pickle
 import numpy as np
-with open('external_dict.pickle', 'rb') as handle:
+with open('../iebot/iebot/external_dict.pickle', 'rb') as handle:
     external_dict = pickle.load(handle)
 
 
