@@ -8,25 +8,27 @@ from time import time
 import math
 from iebot.utils import *
 
-external_dict = {}
 
+class Manager:
+    def __init__(self, bit_board, mask, max_time):
+        self.node = Node(bit_board ^ mask, mask)
+        self.max_time = max_time
 
-def manager(current_node, max_time):
-    t0 = time()
-    while time() - t0 < max_time:
-        tree_search(current_node)
+    def run(self, bit_board, mask):
+        t0 = time()
+        while time() - t0 < self.max_time:
+            tree_search(self.node)
 
-    scores = [child.score for child in current_node.children]
+        if self.node.bit_board != bit_board ^ mask:  # Single bot
+            self.node = [child for child in self.node.children if child.bit_board == (bit_board ^ mask)][0]
 
-    save_data_into_dict(current_node)
+        scores = [child.score for child in self.node.children]
 
-    return current_node.children[scores.index(max(scores))].play
+        play = self.node.children[scores.index(max(scores))].play
 
+        self.node = self.node.children[scores.index(max(scores))]
 
-def save_data_into_dict(current_node):
-    for child in current_node.children:
-        external_dict[(child.bit_board, child.mask)] = (child.score, child.count)
-        save_data_into_dict(child)
+        return play
 
 
 def tree_search(node):
@@ -49,13 +51,6 @@ def ucb1(child, parent_count, exploration_parameter=math.sqrt(2)):
     return (child.score / child.count) + exploration_parameter * math.sqrt(e1)
 
 
-def initialize_node(bit_board, mask):
-    if (bit_board, mask) in external_dict.keys():
-        return external_dict[(bit_board, mask)]
-    else:
-        return 0, 0
-
-
 class Node:
     def __init__(self, bit_board, mask, play=0):
         self.bit_board = bit_board
@@ -65,7 +60,7 @@ class Node:
         self.children = []
 
         self.plays = generate_plays(self.mask)
-        self.score, self.count = initialize_node(bit_board, mask)
+        self.score, self.count = 0, 0
 
         shuffle(self.plays)  # Inplace list shuffle
 
@@ -88,12 +83,14 @@ class Node:
         return node
 
 
-def my_agent(obs, config):
+def iebot_v6(obs, config):
     board = translate_board(obs.board)
     bit_board, mask = get_position_mask_bitmap(board, obs.mark)
 
-    node = Node(bit_board ^ mask, mask)
+    if 'manager' not in globals() or mask == 0:
+        global manager
+        manager = Manager(bit_board=bit_board, mask=mask, max_time=1)
 
-    play = manager(current_node=node, max_time=1)
+    play = manager.run(bit_board, mask)
 
     return transform_play_to_column(play=play)
