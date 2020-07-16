@@ -93,7 +93,7 @@ cpdef list generate_plays(unsigned long long mask):
                 break
     return valid_plays
 
-cpdef int transform_play_to_column(unsigned long long play):
+cpdef unsigned long long transform_play_to_column(unsigned long long play):
     """Return position of the column where the play was made.
 
     Parameters:
@@ -101,6 +101,7 @@ cpdef int transform_play_to_column(unsigned long long play):
 
     Returns:
     int : column position"""
+    cdef unsigned long long i
     POSSIBLE_MOVES = [2 ** i for i in range(49)]
 
     return POSSIBLE_MOVES.index(play) // 7

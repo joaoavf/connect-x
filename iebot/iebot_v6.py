@@ -1,48 +1,46 @@
 """
-Monte carlo forests
-
+This version is intended to implement transposition tables.
 @author: João Alexandre Vaz Ferreira - joao.avf@gmail.com
 """
 
 from random import shuffle
 from time import time
-import pandas as pd
-from iebot.utils import *
-from iebot.tranposition_table_8_ply import tranposition_table
 import math
-from copy import deepcopy
+from iebot.utils import *
 
 
-def manager(node, max_time, trees=10):
-    results = []
-    for i in range(trees):
-        results.extend(tree(deepcopy(node), max_time=max_time / trees))
-    df = pd.DataFrame(results, columns=['value', 'play'])
-    # print(df)
-    # print( df.groupby('play').agg(['mean', 'count', 'std']))
-    return df.groupby('play').mean().idxmax()[0]
+class Manager:
+    def __init__(self, bit_board, mask, max_time):
+        self.node = Node(bit_board ^ mask, mask)
+        self.max_time = max_time
 
+    def run(self, bit_board, mask):
+        t0 = time()
+        while time() - t0 < self.max_time:
+            tree_search(self.node)
 
-def tree(node, max_time):
-    t0 = time()
-    results = []
-    while time() - t0 < max_time:
-        results.append(tree_search(node))
-    return results
+        if self.node.bit_board != bit_board ^ mask:  # Single bot
+            self.node = [child for child in self.node.children if child.bit_board == (bit_board ^ mask)][0]
+
+        scores = [child.score for child in self.node.children]
+
+        play = self.node.children[scores.index(max(scores))].play
+
+        self.node = self.node.children[scores.index(max(scores))]
+
+        return play
 
 
 def tree_search(node):
     if node.value != 0 or node.mask == 279258638311359:  # Find terminal nodes
-        node.score += node.value
+        node.score += int(node.value)
         node.count += 1
         return [-node.value, node.play]  # Giving higher score to shallow nodes
-    # elif node.play != 0 and (node.bit_board, node.mask) in tranposition_table:
-    # return [-tranposition_table[(node.bit_board, node.mask)], node.play]
 
     child = node.explore_or_exploit()
     result = tree_search(node=child)
 
-    node.score += result[0] == 1
+    node.score += int(result[0] == 1)
     node.count += 1
 
     return -result[0], child.play
@@ -60,9 +58,10 @@ class Node:
         self.play = play
         self.value = connected_four(self.bit_board)
         self.children = []
+
         self.plays = generate_plays(self.mask)
-        self.score = 0
-        self.count = 0
+        self.score, self.count = 0, 0
+
         shuffle(self.plays)  # Inplace list shuffle
 
     def explore_or_exploit(self):
@@ -88,8 +87,11 @@ def iebot_v6(obs, config):
     board = translate_board(obs.board)
     bit_board, mask = get_position_mask_bitmap(board, obs.mark)
 
-    node = Node(bit_board ^ mask, mask)
+    global manager
 
-    play = manager(node=node, max_time=3)
+    if 'manager' not in globals() or (board <= 1).sum():
+        manager = Manager(bit_board=bit_board, mask=mask, max_time=1)
+
+    play = manager.run(bit_board, mask)
 
     return transform_play_to_column(play=play)
