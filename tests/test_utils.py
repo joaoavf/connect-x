@@ -1,4 +1,4 @@
-from iebot.utils import *
+from engine.utils import *
 
 
 def test_translate_board():

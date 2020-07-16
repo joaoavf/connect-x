@@ -1,17 +1,14 @@
 """
-This version is intended to implement transposition tables.
+This version was refactored and implemented alpha beta pruning, which increase nodes considered by the bot from 5 to 7.
 
 @author: João Alexandre Vaz Ferreira - joao.avf@gmail.com
 """
-from iebot.utils import *
-from iebot.tranposition_table_8_ply import tranposition_table
+from engine.utils import *
 
 
-def negamax_ab(node, max_depth, alpha=-float('inf'), beta=float('inf'), root=False):
+def negamax_ab(node, max_depth, alpha=-float('inf'), beta=float('inf')):
     if max_depth == 0 or node.value != 0:
         return [-node.value - (0.01 * max_depth), node.play]  # Giving higher score to shallow nodes
-    elif not root and (node.bit_board, node.mask) in tranposition_table:
-        return [-tranposition_table[(node.bit_board, node.mask)], node.play]
 
     max_value, play = -float('inf'), -1
 
@@ -28,13 +25,9 @@ def negamax_ab(node, max_depth, alpha=-float('inf'), beta=float('inf'), root=Fal
             break
 
     if play == -1:  # Happens only when there are no more pieces left and game is tied
-        tranposition_table[(node.bit_board ^ node.mask, node.mask)] = max_value
         return [0, play]
-
-    elif max_value != 0:
-        tranposition_table[(node.bit_board ^ node.mask, node.mask)] = max_value
-
-    return [max_value, play]
+    else:
+        return [max_value, play]
 
 
 class Node:
@@ -57,11 +50,11 @@ class Node:
             yield node
 
 
-def iebot_v5(obs, config):
+def iebot_v4(obs, config):
     board = translate_board(obs.board)
     bit_board, mask = get_position_mask_bitmap(board, obs.mark)
 
     node = Node(bit_board ^ mask, mask)
 
-    _, play = negamax_ab(node=node, max_depth=8, root=True)
+    _, play = negamax_ab(node=node, max_depth=8)
     return transform_play_to_column(play=play)

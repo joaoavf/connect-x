@@ -6,7 +6,7 @@ This version is intended to implement transposition tables.
 from random import shuffle
 from time import time
 import math
-from iebot.utils import *
+from engine.utils import *
 
 
 class Manager:
