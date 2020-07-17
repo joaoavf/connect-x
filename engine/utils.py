@@ -64,7 +64,7 @@ def get_position_mask_bitmap(board, player):
     return int(player_pieces, 2), int(mask, 2)
 
 
-def generate_plays(mask):
+def generate_plays(mask, order_by_mid=False):
     """Generate a list with all the possible plays in a given round.
 
     Parameters:
@@ -75,14 +75,18 @@ def generate_plays(mask):
 
     position_map = [2 ** i for i in range(49)]  # List of a binary representation of individual pieces in the board
 
-    valid_plays = []
+    available_plays = []
     for column_number in range(7):
         column_values = position_map[7 * column_number: 7 * column_number + 6]  # Minus extra cell on top of the board
         for value in column_values:
             if mask & value == 0:
-                valid_plays.append(value)
+                available_plays.append(value)
                 break
-    return valid_plays
+
+    if order_by_mid:
+        available_plays = [available_plays.pop(i // 2) for i in reversed(range(len(available_plays)))]
+
+    return available_plays
 
 
 def transform_play_to_column(play):
