@@ -6,44 +6,33 @@ This version is intended to implement transposition tables.
 from random import shuffle
 from time import time
 import math
-from engine.utils import *
+from utils import *
 
 
-class Manager:
-    def __init__(self, bit_board, mask, max_time):
-        self.node = Node(bit_board ^ mask, mask)
-        self.max_time = max_time
+def manager(current_node, max_time):
+    t0 = time()
 
-    def run(self, bit_board, mask):
-        t0 = time()
-        while time() - t0 < self.max_time:
-            tree_search(self.node)
+    while time() - t0 < max_time:
+        tree_search(current_node)
 
-        if self.node.bit_board != bit_board ^ mask:  # Single bot
-            self.node = [child for child in self.node.children if child.bit_board == (bit_board ^ mask)][0]
+    scores = [child.score for child in current_node.children]
 
-        scores = [child.score for child in self.node.children]
-
-        play = self.node.children[scores.index(max(scores))].play
-
-        self.node = self.node.children[scores.index(max(scores))]
-
-        return play
+    return current_node.children[scores.index(max(scores))].play
 
 
 def tree_search(node):
     if node.value != 0 or node.mask == 279258638311359:  # Find terminal nodes
         node.score += int(node.value)
         node.count += 1
-        return [-node.value, node.play]  # Giving higher score to shallow nodes
+        return -node.value  # Giving higher score to shallow nodes
 
     child = node.explore_or_exploit()
     result = tree_search(node=child)
 
-    node.score += int(result[0] == 1)
+    node.score += int(result == 1)
     node.count += 1
 
-    return -result[0], child.play
+    return -result
 
 
 def ucb1(child, parent_count, exploration_parameter=math.sqrt(2)):
@@ -83,15 +72,12 @@ class Node:
         return node
 
 
-def iebot_v6(obs, config):
+def my_agent(obs, config):
     board = translate_board(obs.board)
     bit_board, mask = get_position_mask_bitmap(board, obs.mark)
 
-    global manager
+    node = Node(bit_board ^ mask, mask)
 
-    if 'manager' not in globals() or (board <= 1).sum():
-        manager = Manager(bit_board=bit_board, mask=mask, max_time=1)
-
-    play = manager.run(bit_board, mask)
+    play = manager(current_node=node, max_time=1)
 
     return transform_play_to_column(play=play)
