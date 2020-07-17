@@ -10,7 +10,7 @@ def translate_board(board):
     Returns:
     (np.array): 6x7 board mapped by (0: Empty, 1: Player 1, 2: Player 2)"""
 
-    return np.array(board).reshape(6, 7)
+    return np.array(board).reshape(6, 7).tolist()
 
 
 def connected_four(bit_board):
@@ -51,7 +51,6 @@ def get_position_mask_bitmap(board, player):
     Returns:
     (int, int) : (bit board of player pieces, bit board of all pieces)"""
 
-    # TODO fix deprecation warnings
     player_pieces, mask = b'', b''
 
     for j in range(6, -1, -1):  # Start with right-most column
@@ -59,8 +58,8 @@ def get_position_mask_bitmap(board, player):
         player_pieces += b'0'
 
         for i in range(0, 6):  # Start with bottom row
-            mask += [b'0', b'1'][board[i, j] != 0]
-            player_pieces += [b'0', b'1'][board[i, j] == player]
+            mask += [b'0', b'1'][board[i][j] != 0]
+            player_pieces += [b'0', b'1'][board[i][j] == player]
 
     return int(player_pieces, 2), int(mask, 2)
 
