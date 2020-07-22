@@ -14,6 +14,7 @@ import numpy as np
 from tqdm import tqdm
 import time
 
+
 @dataclass
 class SARSD:
     state: Any
@@ -66,11 +67,11 @@ class Model(nn.Module):
         return self.net(x)
 
 
-def train_step(model, target, state_transitions, num_actions):
-    cur_states = torch.stack([torch.Tensor(s.state) for s in state_transitions])
-    rewards = torch.stack([torch.Tensor([s.reward]) for s in state_transitions])
-    mask = torch.stack([torch.Tensor([0]) if s.done else torch.Tensor([1]) for s in state_transitions])
-    next_states = torch.stack([torch.Tensor(s.next_state) for s in state_transitions])
+def train_step(model, target, state_transitions, num_actions, device):
+    cur_states = torch.stack([torch.Tensor(s.state) for s in state_transitions]).to(device)
+    rewards = torch.stack([torch.Tensor([s.reward]) for s in state_transitions]).to(device)
+    mask = torch.stack([torch.Tensor([0]) if s.done else torch.Tensor([1]) for s in state_transitions]).to(device)
+    next_states = torch.stack([torch.Tensor(s.next_state) for s in state_transitions]).to(device)
     actions = [s.action for s in state_transitions]
 
     with torch.no_grad():
@@ -78,7 +79,7 @@ def train_step(model, target, state_transitions, num_actions):
 
     model.optim.zero_grad()
     qvals = model(cur_states)
-    one_hot_actions = F.one_hot(torch.LongTensor(actions), num_actions)
+    one_hot_actions = F.one_hot(torch.LongTensor(actions), num_actions).to(device)
 
     loss = ((rewards + mask[:, 0] * q_vals_next - torch.sum(qvals * one_hot_actions, -1)) ** 2).mean()
     loss.backward()
@@ -91,7 +92,7 @@ def update_target_model(model, target):
     target.load_state_dict(model.state_dict())
 
 
-def main(test=False, checkpoint=None):
+def main(test=False, checkpoint=None, device='cuda'):
     if not test:
         wandb.init(project="dqn-tutorial", name="dqn-cartpole")
     min_rb_size = 10000
@@ -106,10 +107,10 @@ def main(test=False, checkpoint=None):
     env = gym.make('CartPole-v1')
     last_observation = env.reset()
 
-    m = Model(env.observation_space.shape, env.action_space.n)
+    m = Model(env.observation_space.shape, env.action_space.n).to(device)
     if checkpoint is not None:
         m.load_state_dict(torch.load(checkpoint))
-    target = Model(env.observation_space.shape, env.action_space.n)
+    target = Model(env.observation_space.shape, env.action_space.n).to(device)
 
     rb = ReplayBuffer()
     steps_since_train = 0
@@ -133,7 +134,7 @@ def main(test=False, checkpoint=None):
             if random() < eps:
                 action = env.action_space.sample()
             else:
-                action = m(torch.Tensor(last_observation)).max(-1)[-1].item()
+                action = m(torch.Tensor(last_observation).to(device)).max(-1)[-1].item()
 
             observation, reward, done, info = env.step(action)
 
@@ -156,8 +157,12 @@ def main(test=False, checkpoint=None):
             step_num += 1
 
             if not test and len(rb.buffer) > min_rb_size and steps_since_train > env_steps_before_train:
-                loss = train_step(m, target, rb.sample(sample_size), env.action_space.n)
-                wandb.log({'loss': loss, 'eps': eps, 'rewards': np.mean(episode_rewards)}, step=step_num)
+                loss = train_step(m, target, rb.sample(sample_size), env.action_space.n, device)
+                wandb.log({'loss': loss.detach().cpu().item(),
+                           'eps': eps,
+                           'rewards': np.mean(episode_rewards)
+                           },
+                          step=step_num)
 
                 episode_rewards = []
                 epochs_since_tgt += 1
