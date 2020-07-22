@@ -60,7 +60,7 @@ class Model(nn.Module):
             torch.nn.Linear(256, num_actions)
         )
 
-        self.optim = optim.Adam(self.net.parameters(), lr=0.0001)
+        self.optim = optim.Adam(self.net.parameters(), lr=0.01)
 
     def forward(self, x):
         return self.net(x)
@@ -134,13 +134,14 @@ def main(test=False, checkpoint=None):
                 action = env.action_space.sample()
             else:
                 action = m(torch.Tensor(last_observation)).max(-1)[-1].item()
+
             observation, reward, done, info = env.step(action)
 
             rolling_reward += reward
 
             reward = reward / 100.0
 
-            rb.insert(SARSD(observation, action, reward, last_observation, done))
+            rb.insert(SARSD(last_observation, action, reward, observation, done))
 
             if done:
                 episode_rewards.append(rolling_reward)
@@ -158,13 +159,15 @@ def main(test=False, checkpoint=None):
                 loss = train_step(m, target, rb.sample(sample_size), env.action_space.n)
                 wandb.log({'loss': loss, 'eps': eps, 'rewards': np.mean(episode_rewards)}, step=step_num)
 
+                episode_rewards = []
+                epochs_since_tgt += 1
+
                 if epochs_since_tgt > tgt_model_update:
                     update_target_model(m, target)
                     print('update tgt model', np.mean(episode_rewards))
                     epochs_since_tgt = 0
                     torch.save(target.state_dict(), f'models/{step_num}.pth')
 
-                epochs_since_tgt += 1
                 steps_since_train = 0
 
     except KeyboardInterrupt:
