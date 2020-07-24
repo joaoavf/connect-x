@@ -12,6 +12,7 @@ import wandb
 import numpy as np
 from tqdm import tqdm
 import time
+from kaggle_environments import evaluate, make
 
 
 @dataclass
@@ -65,6 +66,18 @@ class Model(nn.Module):
     def forward(self, x):
         return self.net(x)
 
+    def get_action(self, observation, epsilon, device):
+        prediction = self(torch.Tensor([observation])).to(device)[0].detach().numpy()  # .max(-1)[-1].item()
+
+        if np.random.random() < epsilon:
+            return int(np.random.choice([c for i, c in enumerate(range(self.num_actions)) if observation[i] == 0])), prediction
+
+        else:
+            for i in range(self.num_actions):
+                if observation[i] != 0:
+                    prediction[i] = -1
+            return int(np.argmax(prediction)), np.mean(prediction)
+
 
 def train_step(model, target, state_transitions, num_actions, device, discount_factor=0.99):
     cur_states = torch.stack([torch.Tensor(s.state) for s in state_transitions]).to(device)
@@ -91,6 +104,10 @@ def update_target_model(model, target):
     target.load_state_dict(model.state_dict())
 
 
+def preprocess(board, player):
+    return np.array([1 if val == player else 0 if val == 0 else -1 for val in board])
+
+
 class Game:
     def __init__(self, test=False, checkpoint=None, device='cpu'):
         if not test:
@@ -111,13 +128,19 @@ class Game:
         self.env_steps_before_train = 100
         self.tgt_model_update = 500
 
-        self.env = gym.make('CartPole-v1')
-        self.last_observation = self.env.reset()
+        self.env = make('connectx', debug=False)
+        self.configuration = self.env.configuration
+        self.action_space = gym.spaces.Discrete(self.configuration.columns)
+        self.observation_space = np.array([0] * self.configuration.columns * self.configuration.rows)
 
-        self.model = Model(self.env.observation_space.shape, self.env.action_space.n).to(device)
+        self.last_observation = self.env.reset()[0]['observation']['board']
+
+        self.last_observation = preprocess(board=self.last_observation, player=1)
+
+        self.model = Model(self.observation_space.shape, self.action_space.n).to(device)
         if checkpoint is not None:
             self.model.load_state_dict(torch.load(checkpoint))
-        self.target = Model(self.env.observation_space.shape, self.env.action_space.n).to(device)
+        self.target = Model(self.observation_space.shape, self.action_space.n).to(device)
 
         self.rb = ReplayBuffer()
         self.steps_since_train = 0
@@ -126,9 +149,12 @@ class Game:
         self.step_num = -1 * self.min_rb_size
 
         self.episode_rewards = []
+
         self.rolling_reward = 0
+        self.active_player = 0
 
     def play(self):
+
         if self.test:
             self.env.render()
             time.sleep(0.01)
@@ -137,14 +163,31 @@ class Game:
         eps = max(self.eps_decay ** self.step_num, self.eps_min)
         if self.test:
             eps = 0
-        if random() < eps:
-            action = self.env.action_space.sample()
+
+        action, prediction = self.model.get_action(observation=self.last_observation, epsilon=eps, device=self.device)
+
+        p_dict = self.env.step([action if i == self.active_player else None for i in [0, 1]])[self.active_player]
+
+        reward = p_dict['reward']
+        done = self.env.done
+
+        observation = p_dict['observation']['board']
+
+        observation = preprocess(board=observation, player=p_dict['observation']['mark'])
+
+        if done:
+            if reward == 1:  # Won
+                reward = 1
+            elif reward == 0 or reward is None:  # Lost
+                reward = -1
+            else:  # Draw
+                reward = 0
         else:
-            action = self.model(torch.Tensor(self.last_observation).to(self.device)).max(-1)[-1].item()
+            reward = 0
 
-        observation, reward, done, info = self.env.step(action)
+        self.active_player = [1, 0][self.active_player]
 
-        self.rolling_reward += reward
+        self.rolling_reward += prediction
 
         reward = reward / 100.0
 
@@ -155,7 +198,10 @@ class Game:
             if self.test:
                 print(self.rolling_reward)
             self.rolling_reward = 0
-            observation = self.env.reset()
+            observation = self.env.reset()[0]['observation']['board']
+            observation = preprocess(board=observation, player=1)
+
+            self.active_player = 0
 
         self.last_observation = observation
 
@@ -164,7 +210,7 @@ class Game:
 
         if not self.test and len(
                 self.rb.buffer) > self.min_rb_size and self.steps_since_train > self.env_steps_before_train:
-            loss = train_step(self.model, self.target, self.rb.sample(self.sample_size), self.env.action_space.n,
+            loss = train_step(self.model, self.target, self.rb.sample(self.sample_size), self.action_space.n,
                               self.device)
             wandb.log({'loss': loss.detach().cpu().item(),
                        'eps': eps,
@@ -195,4 +241,4 @@ def main(test=False, checkpoint=None, device='cuda'):
 
 
 if __name__ == '__main__':
-    main()
+    main(test=True)
