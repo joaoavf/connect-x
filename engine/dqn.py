@@ -1,7 +1,6 @@
 from collections import deque
 
 import gym
-import ipdb
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -67,7 +66,7 @@ class Model(nn.Module):
         return self.net(x)
 
 
-def train_step(model, target, state_transitions, num_actions, device):
+def train_step(model, target, state_transitions, num_actions, device, discount_factor=0.99):
     cur_states = torch.stack([torch.Tensor(s.state) for s in state_transitions]).to(device)
     rewards = torch.stack([torch.Tensor([s.reward]) for s in state_transitions]).to(device)
     mask = torch.stack([torch.Tensor([0]) if s.done else torch.Tensor([1]) for s in state_transitions]).to(device)
@@ -81,7 +80,7 @@ def train_step(model, target, state_transitions, num_actions, device):
     qvals = model(cur_states)
     one_hot_actions = F.one_hot(torch.LongTensor(actions), num_actions).to(device)
 
-    loss = ((rewards + mask[:, 0] * q_vals_next - torch.sum(qvals * one_hot_actions, -1)) ** 2).mean()
+    loss = ((rewards + mask[:, 0] * q_vals_next * discount_factor - torch.sum(qvals * one_hot_actions, -1)) ** 2).mean()
     loss.backward()
     model.optim.step()
 
@@ -92,88 +91,104 @@ def update_target_model(model, target):
     target.load_state_dict(model.state_dict())
 
 
+class Game:
+    def __init__(self, test=False, checkpoint=None, device='cpu'):
+        if not test:
+            wandb.init(project="dqn-tutorial", name="dqn-cartpole")
+
+        self.tq = tqdm()
+
+        self.min_rb_size = 10000
+        self.sample_size = 2500
+
+        self.test = test
+        self.checkpoint = checkpoint
+        self.device = device
+
+        self.eps_min = 0.01
+        self.eps_decay = 0.999999
+
+        self.env_steps_before_train = 100
+        self.tgt_model_update = 500
+
+        self.env = gym.make('CartPole-v1')
+        self.last_observation = self.env.reset()
+
+        self.model = Model(self.env.observation_space.shape, self.env.action_space.n).to(device)
+        if checkpoint is not None:
+            self.model.load_state_dict(torch.load(checkpoint))
+        self.target = Model(self.env.observation_space.shape, self.env.action_space.n).to(device)
+
+        self.rb = ReplayBuffer()
+        self.steps_since_train = 0
+        self.epochs_since_tgt = 0
+
+        self.step_num = -1 * self.min_rb_size
+
+        self.episode_rewards = []
+        self.rolling_reward = 0
+
+    def play(self):
+        if self.test:
+            self.env.render()
+            time.sleep(0.01)
+
+        self.tq.update(1)
+        eps = max(self.eps_decay ** self.step_num, self.eps_min)
+        if self.test:
+            eps = 0
+        if random() < eps:
+            action = self.env.action_space.sample()
+        else:
+            action = self.model(torch.Tensor(self.last_observation).to(self.device)).max(-1)[-1].item()
+
+        observation, reward, done, info = self.env.step(action)
+
+        self.rolling_reward += reward
+
+        reward = reward / 100.0
+
+        self.rb.insert(SARSD(self.last_observation, action, reward, observation, done))
+
+        if done:
+            self.episode_rewards.append(self.rolling_reward)
+            if self.test:
+                print(self.rolling_reward)
+            self.rolling_reward = 0
+            observation = self.env.reset()
+
+        self.last_observation = observation
+
+        self.steps_since_train += 1
+        self.step_num += 1
+
+        if not self.test and len(
+                self.rb.buffer) > self.min_rb_size and self.steps_since_train > self.env_steps_before_train:
+            loss = train_step(self.model, self.target, self.rb.sample(self.sample_size), self.env.action_space.n,
+                              self.device)
+            wandb.log({'loss': loss.detach().cpu().item(),
+                       'eps': eps,
+                       'rewards': np.mean(self.episode_rewards)
+                       },
+                      step=self.step_num)
+
+            self.episode_rewards = []
+            self.epochs_since_tgt += 1
+
+            if self.epochs_since_tgt > self.tgt_model_update:
+                update_target_model(self.model, self.target)
+                print('update tgt model', np.mean(self.episode_rewards))
+                self.epochs_since_tgt = 0
+                torch.save(self.target.state_dict(), f'models/{self.step_num}.pth')
+
+            self.steps_since_train = 0
+
+
 def main(test=False, checkpoint=None, device='cuda'):
-    if not test:
-        wandb.init(project="dqn-tutorial", name="dqn-cartpole")
-    min_rb_size = 10000
-    sample_size = 2500
-
-    eps_min = 0.01
-    eps_decay = 0.999999
-
-    env_steps_before_train = 100
-    tgt_model_update = 500
-
-    env = gym.make('CartPole-v1')
-    last_observation = env.reset()
-
-    m = Model(env.observation_space.shape, env.action_space.n).to(device)
-    if checkpoint is not None:
-        m.load_state_dict(torch.load(checkpoint))
-    target = Model(env.observation_space.shape, env.action_space.n).to(device)
-
-    rb = ReplayBuffer()
-    steps_since_train = 0
-    epochs_since_tgt = 0
-
-    step_num = -1 * min_rb_size
-
-    episode_rewards = []
-    rolling_reward = 0
-
-    tq = tqdm()
+    game = Game()
     try:
         while True:
-            if test:
-                env.render()
-                time.sleep(0.01)
-            tq.update(1)
-            eps = max(eps_decay ** step_num, eps_min)
-            if test:
-                eps = 0
-            if random() < eps:
-                action = env.action_space.sample()
-            else:
-                action = m(torch.Tensor(last_observation).to(device)).max(-1)[-1].item()
-
-            observation, reward, done, info = env.step(action)
-
-            rolling_reward += reward
-
-            reward = reward / 100.0
-
-            rb.insert(SARSD(last_observation, action, reward, observation, done))
-
-            if done:
-                episode_rewards.append(rolling_reward)
-                if test:
-                    print(rolling_reward)
-                rolling_reward = 0
-                observation = env.reset()
-
-            last_observation = observation
-
-            steps_since_train += 1
-            step_num += 1
-
-            if not test and len(rb.buffer) > min_rb_size and steps_since_train > env_steps_before_train:
-                loss = train_step(m, target, rb.sample(sample_size), env.action_space.n, device)
-                wandb.log({'loss': loss.detach().cpu().item(),
-                           'eps': eps,
-                           'rewards': np.mean(episode_rewards)
-                           },
-                          step=step_num)
-
-                episode_rewards = []
-                epochs_since_tgt += 1
-
-                if epochs_since_tgt > tgt_model_update:
-                    update_target_model(m, target)
-                    print('update tgt model', np.mean(episode_rewards))
-                    epochs_since_tgt = 0
-                    torch.save(target.state_dict(), f'models/{step_num}.pth')
-
-                steps_since_train = 0
+            game.play()
 
     except KeyboardInterrupt:
         pass
