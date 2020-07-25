@@ -13,6 +13,7 @@ import numpy as np
 from tqdm import tqdm
 import time
 from kaggle_environments import evaluate, make
+import ipdb
 
 
 @dataclass
@@ -35,7 +36,7 @@ class DQNAgent:
 
 
 class ReplayBuffer:
-    def __init__(self, buffer_size=100_000):
+    def __init__(self, buffer_size=1_000_000):
         self.buffer_size = buffer_size
         self.buffer = deque(maxlen=buffer_size)
 
@@ -56,11 +57,24 @@ class Model(nn.Module):
         self.num_actions = num_actions
 
         self.net = torch.nn.Sequential(
-            torch.nn.Linear(obs_shape[0], 256),
+            torch.nn.Linear(obs_shape[0], 128),
             torch.nn.ReLU(),
-            torch.nn.Linear(256, num_actions),
+            torch.nn.Linear(128, 256),
+            torch.nn.ReLU(),
+            torch.nn.Linear(256, 256),
+            torch.nn.ReLU(),
+            torch.nn.Linear(256, 256),
+            torch.nn.ReLU(),
+            torch.nn.Linear(256, 128),
+            torch.nn.ReLU(),
+            torch.nn.Linear(128, num_actions),
             torch.nn.Tanh()
         )
+
+        for layer in self.net[2:-2:2]:
+            torch.nn.init.kaiming_normal_(layer.weight)
+
+        torch.nn.init.kaiming_normal_(self.net[-2].weight)
 
         self.optim = optim.Adam(self.net.parameters(), lr=0.001)
 
@@ -91,14 +105,19 @@ def train_step(model, target, state_transitions, num_actions, device, discount_f
 
     move_validity = next_states[:, :num_actions] == 0
     with torch.no_grad():
-        q_vals_next = -target(next_states)
-    q_vals_next = np.where(move_validity, q_vals_next, -1).max(-1)[0]
+        q_vals_next = target(next_states)
+    q_vals_next = -np.where(move_validity, q_vals_next, -1).max(-1)[0]
 
     model.optim.zero_grad()
     qvals = model(cur_states)
     one_hot_actions = F.one_hot(torch.LongTensor(actions), num_actions).to(device)
 
-    loss = ((rewards + mask[:, 0] * q_vals_next * discount_factor - torch.sum(qvals * one_hot_actions, -1)) ** 2).mean()
+    actual_values = rewards + mask[:, 0] * q_vals_next * discount_factor
+
+    expected_values = torch.sum(qvals * one_hot_actions, -1)
+
+    loss = ((actual_values - expected_values) ** 2).mean()
+
     loss.backward()
     model.optim.step()
 
@@ -122,8 +141,8 @@ class Game:
 
         self.tq = tqdm()
 
-        self.min_rb_size = 10000
-        self.sample_size = 2500
+        self.min_rb_size = 1_000
+        self.sample_size = 512
 
         self.test = test
         self.checkpoint = checkpoint
@@ -132,8 +151,8 @@ class Game:
         self.eps_min = 0.1
         self.eps_decay = 0.999999
 
-        self.env_steps_before_train = 100
-        self.tgt_model_update = 500
+        self.env_steps_before_train = 64
+        self.tgt_model_update = 250
 
         self.env = make('connectx', debug=False)
         self.configuration = self.env.configuration
@@ -176,12 +195,12 @@ class Game:
 
         action, prediction = self.model.get_action(observation=self.last_observation, epsilon=eps, device=self.device)
 
-        p_dict = self.env.step([action if i == self.active_player else None for i in [0, 1]])[self.active_player]
+        p_dict = self.env.step([action if i == self.active_player else None for i in [0, 1]])
 
-        reward = p_dict['reward']
+        reward = p_dict[self.active_player]['reward']
         done = self.env.done
 
-        observation = p_dict['observation']
+        observation = p_dict[[1, 0][self.active_player]]['observation']
         observation = preprocess(observation=observation)
 
         if done:
@@ -198,12 +217,10 @@ class Game:
 
         self.rolling_reward += prediction
 
-        reward = reward / 100.0
-
         self.rb.insert(SARSD(self.last_observation, action, reward, observation, done))
 
         if done:
-            self.episode_rewards.append(self.rolling_reward)
+            self.episode_rewards.append(np.mean(self.rolling_reward))
             if self.test:
                 print(self.rolling_reward)
             self.rolling_reward = 0
@@ -216,8 +233,7 @@ class Game:
         self.steps_since_train += 1
         self.step_num += 1
 
-        if not self.test and len(
-                self.rb.buffer) > self.min_rb_size and self.steps_since_train > self.env_steps_before_train:
+        if not self.test and self.step_num > self.min_rb_size and self.steps_since_train > self.env_steps_before_train:
             loss = train_step(self.model, self.target, self.rb.sample(self.sample_size), self.action_space.n,
                               self.device)
             wandb.log({'loss': loss.detach().cpu().item(),
