@@ -58,10 +58,11 @@ class Model(nn.Module):
         self.net = torch.nn.Sequential(
             torch.nn.Linear(obs_shape[0], 256),
             torch.nn.ReLU(),
-            torch.nn.Linear(256, num_actions)
+            torch.nn.Linear(256, num_actions),
+            torch.nn.Tanh()
         )
 
-        self.optim = optim.Adam(self.net.parameters(), lr=0.01)
+        self.optim = optim.Adam(self.net.parameters(), lr=0.001)
 
     def forward(self, x):
         return self.net(x)
@@ -88,8 +89,10 @@ def train_step(model, target, state_transitions, num_actions, device, discount_f
     next_states = torch.stack([torch.Tensor(s.next_state) for s in state_transitions]).to(device)
     actions = [s.action for s in state_transitions]
 
+    move_validity = next_states[:, :num_actions] == 0
     with torch.no_grad():
-        q_vals_next = -target(next_states).max(-1)[0]
+        q_vals_next = -target(next_states)
+    q_vals_next = np.where(move_validity, q_vals_next, -1).max(-1)[0]
 
     model.optim.zero_grad()
     qvals = model(cur_states)
@@ -106,7 +109,9 @@ def update_target_model(model, target):
     target.load_state_dict(model.state_dict())
 
 
-def preprocess(board, player):
+def preprocess(observation):
+    board = observation['board']
+    player = observation['mark']
     return np.array([1 if value == player else 0 if value == 0 else -1 for value in board])
 
 
@@ -135,9 +140,9 @@ class Game:
         self.action_space = gym.spaces.Discrete(self.configuration.columns)
         self.observation_space = np.array([0] * self.configuration.columns * self.configuration.rows)
 
-        self.last_observation = self.env.reset()[0]['observation']['board']
+        self.last_observation = self.env.reset()[0]['observation']
 
-        self.last_observation = preprocess(board=self.last_observation, player=1)
+        self.last_observation = preprocess(observation=self.last_observation)
 
         self.model = Model(self.observation_space.shape, self.action_space.n).to(device)
         self.target = Model(self.observation_space.shape, self.action_space.n).to(device)
@@ -176,9 +181,8 @@ class Game:
         reward = p_dict['reward']
         done = self.env.done
 
-        observation = p_dict['observation']['board']
-
-        observation = preprocess(board=observation, player=[2, 1][self.active_player])
+        observation = p_dict['observation']
+        observation = preprocess(observation=observation)
 
         if done:
             if reward == 1:  # Won
@@ -203,8 +207,8 @@ class Game:
             if self.test:
                 print(self.rolling_reward)
             self.rolling_reward = 0
-            observation = self.env.reset()[0]['observation']['board']
-            observation = preprocess(board=observation, player=1)
+            observation = self.env.reset()[0]['observation']
+            observation = preprocess(observation=observation)
 
             self.active_player = 0
 
@@ -233,7 +237,7 @@ class Game:
             self.steps_since_train = 0
 
 
-def main(test=False, checkpoint=None, device='cuda'):
+def main(test=False, checkpoint=None, device='cpu'):
     game = Game(test=test, checkpoint=checkpoint, device=device)
     try:
         while True:
@@ -244,4 +248,4 @@ def main(test=False, checkpoint=None, device='cuda'):
 
 
 if __name__ == '__main__':
-    main(checkpoint='models/dqn_minimax_7792454.pth')
+    main()  # (checkpoint='models/dqn_minimax_1770935.pth')
