@@ -70,13 +70,15 @@ class Model(nn.Module):
         prediction = self(torch.Tensor([observation])).to(device)[0].detach().numpy()  # .max(-1)[-1].item()
 
         if np.random.random() < epsilon:
-            return int(np.random.choice([c for i, c in enumerate(range(self.num_actions)) if observation[i] == 0])), prediction
+            return int(
+                np.random.choice([c for i, c in enumerate(range(self.num_actions)) if observation[i] == 0])), np.max(
+                prediction)
 
         else:
             for i in range(self.num_actions):
                 if observation[i] != 0:
                     prediction[i] = -1
-            return int(np.argmax(prediction)), np.mean(prediction)
+            return int(np.argmax(prediction)), np.max(prediction)
 
 
 def train_step(model, target, state_transitions, num_actions, device, discount_factor=0.99):
@@ -87,7 +89,7 @@ def train_step(model, target, state_transitions, num_actions, device, discount_f
     actions = [s.action for s in state_transitions]
 
     with torch.no_grad():
-        q_vals_next = target(next_states).max(-1)[0]
+        q_vals_next = -target(next_states).max(-1)[0]
 
     model.optim.zero_grad()
     qvals = model(cur_states)
@@ -105,13 +107,13 @@ def update_target_model(model, target):
 
 
 def preprocess(board, player):
-    return np.array([1 if val == player else 0 if val == 0 else -1 for val in board])
+    return np.array([1 if value == player else 0 if value == 0 else -1 for value in board])
 
 
 class Game:
     def __init__(self, test=False, checkpoint=None, device='cpu'):
         if not test:
-            wandb.init(project="dqn-tutorial", name="dqn-cartpole")
+            wandb.init(project="dqn-tutorial", name="dqn-minimax")
 
         self.tq = tqdm()
 
@@ -122,7 +124,7 @@ class Game:
         self.checkpoint = checkpoint
         self.device = device
 
-        self.eps_min = 0.01
+        self.eps_min = 0.1
         self.eps_decay = 0.999999
 
         self.env_steps_before_train = 100
@@ -138,9 +140,12 @@ class Game:
         self.last_observation = preprocess(board=self.last_observation, player=1)
 
         self.model = Model(self.observation_space.shape, self.action_space.n).to(device)
-        if checkpoint is not None:
-            self.model.load_state_dict(torch.load(checkpoint))
         self.target = Model(self.observation_space.shape, self.action_space.n).to(device)
+
+        if checkpoint is not None:
+            print('Models loaded:')
+            self.model.load_state_dict(torch.load(checkpoint))
+            self.target.load_state_dict(torch.load(checkpoint))
 
         self.rb = ReplayBuffer()
         self.steps_since_train = 0
@@ -173,7 +178,7 @@ class Game:
 
         observation = p_dict['observation']['board']
 
-        observation = preprocess(board=observation, player=p_dict['observation']['mark'])
+        observation = preprocess(board=observation, player=[2, 1][self.active_player])
 
         if done:
             if reward == 1:  # Won
@@ -204,7 +209,6 @@ class Game:
             self.active_player = 0
 
         self.last_observation = observation
-
         self.steps_since_train += 1
         self.step_num += 1
 
@@ -223,15 +227,14 @@ class Game:
 
             if self.epochs_since_tgt > self.tgt_model_update:
                 update_target_model(self.model, self.target)
-                print('update tgt model', np.mean(self.episode_rewards))
+                torch.save(self.target.state_dict(), f'models/dqn_minimax_{self.step_num}.pth')
                 self.epochs_since_tgt = 0
-                torch.save(self.target.state_dict(), f'models/{self.step_num}.pth')
 
             self.steps_since_train = 0
 
 
 def main(test=False, checkpoint=None, device='cuda'):
-    game = Game()
+    game = Game(test=test, checkpoint=checkpoint, device=device)
     try:
         while True:
             game.play()
@@ -241,4 +244,4 @@ def main(test=False, checkpoint=None, device='cuda'):
 
 
 if __name__ == '__main__':
-    main(test=True)
+    main(checkpoint='models/dqn_minimax_7792454.pth')
