@@ -112,7 +112,7 @@ def train_step(model, target, state_transitions, num_actions, device, discount_f
     qvals = model(cur_states)
     one_hot_actions = F.one_hot(torch.LongTensor(actions), num_actions).to(device)
 
-    actual_values = rewards + mask[:, 0] * q_values_next * discount_factor
+    actual_values = rewards[:, 0] + mask[:, 0] * q_values_next * discount_factor
 
     expected_values = torch.sum(qvals * one_hot_actions, -1)
 
