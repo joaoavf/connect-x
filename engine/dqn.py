@@ -58,7 +58,6 @@ class Model(nn.Module):
 
         self.net = torch.nn.Sequential(
             torch.nn.Linear(obs_shape[0], 128),
-            torch.nn.ReLU(),
             torch.nn.Linear(128, 256),
             torch.nn.ReLU(),
             torch.nn.Linear(256, 256),
@@ -71,12 +70,12 @@ class Model(nn.Module):
             torch.nn.Tanh()
         )
 
-        for layer in self.net[2:-2:2]:
+        for layer in self.net[1:-2:2]:
             torch.nn.init.kaiming_normal_(layer.weight)
 
         torch.nn.init.normal_(self.net[-2].weight)
 
-        self.optim = optim.AdamW(self.net.parameters(), lr=0.001)
+        self.optim = optim.Adam(self.net.parameters(), lr=0.001)
 
     def forward(self, x):
         return self.net(x)
@@ -149,7 +148,7 @@ class Game:
         self.device = device
 
         self.eps_min = 0.1
-        self.eps_decay = 0.999999
+        self.eps_decay = 0.9999
 
         self.env_steps_before_train = 64
         self.tgt_model_update = 250
