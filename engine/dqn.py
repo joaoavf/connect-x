@@ -25,16 +25,6 @@ class SARSD:
     done: bool
 
 
-class DQNAgent:
-    def __init__(self, model):
-        self.model = model
-
-    def get_actions(self, observations):
-        q_vals = self.model(observations)
-
-        return q_vals.max(-1)[1]
-
-
 class ReplayBuffer:
     def __init__(self, buffer_size=1_000_000):
         self.buffer_size = buffer_size
@@ -49,33 +39,26 @@ class ReplayBuffer:
 
 
 class Model(nn.Module):
-    def __init__(self, obs_shape, num_actions):
+    def __init__(self, obs_shape, num_actions, lr=0.00001):
         super(Model, self).__init__()
-        assert len(obs_shape) == 1, "This network only works for flat obs"
-
-        self.obs_shape = obs_shape
-        self.num_actions = num_actions
-
+        self.obs_shape, self.num_actions = obs_shape, num_actions
         self.net = torch.nn.Sequential(
             torch.nn.Linear(obs_shape[0], 128),
-            torch.nn.Linear(128, 256),
-            torch.nn.ReLU(),
-            torch.nn.Linear(256, 256),
-            torch.nn.ReLU(),
-            torch.nn.Linear(256, 256),
-            torch.nn.ReLU(),
-            torch.nn.Linear(256, 128),
-            torch.nn.ReLU(),
-            torch.nn.Linear(128, num_actions),
-            torch.nn.Tanh()
+            torch.nn.Linear(128, 256), torch.nn.ReLU(),
+            torch.nn.Linear(256, 256), torch.nn.ReLU(),
+            torch.nn.Linear(256, 256), torch.nn.ReLU(),
+            torch.nn.Linear(256, 128), torch.nn.ReLU(),
+            torch.nn.Linear(128, num_actions), torch.nn.Tanh()
         )
+        self.initialize_layers()
 
+        self.optimizer = optim.Adam(self.net.parameters(), lr=lr)
+
+    def initialize_layers(self):
+        # Initialize layers
         for layer in self.net[1:-2:2]:
             torch.nn.init.kaiming_normal_(layer.weight)
-
         torch.nn.init.normal_(self.net[-2].weight)
-
-        self.optim = optim.Adam(self.net.parameters(), lr=0.00001)
 
     def forward(self, x):
         return self.net(x)
@@ -84,10 +67,8 @@ class Model(nn.Module):
         prediction = self(torch.Tensor([observation])).to(device)[0].detach().numpy()  # .max(-1)[-1].item()
 
         if np.random.random() < epsilon:
-            return int(
-                np.random.choice([c for i, c in enumerate(range(self.num_actions)) if observation[i] == 0])), np.max(
-                prediction)
-
+            available_actions = [c for i, c in enumerate(range(self.num_actions)) if observation[i] == 0]
+            return int(np.random.choice(available_actions)), np.max(prediction)
         else:
             for i in range(self.num_actions):
                 if observation[i] != 0:
@@ -107,7 +88,7 @@ def train_step(model, target, state_transitions, num_actions, device, discount_f
         q_values_next = target(next_states)
     q_values_next = -np.where(move_validity, q_values_next, -1).max(-1)
 
-    model.optim.zero_grad()
+    model.optimizer.zero_grad()
     qvals = model(cur_states)
     one_hot_actions = F.one_hot(torch.LongTensor(actions), num_actions).to(device)
 
@@ -118,7 +99,7 @@ def train_step(model, target, state_transitions, num_actions, device, discount_f
     loss = ((actual_values - expected_values) ** 2).mean()
 
     loss.backward()
-    model.optim.step()
+    model.optimizer.step()
 
     return loss
 
