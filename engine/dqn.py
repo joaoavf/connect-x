@@ -74,9 +74,9 @@ class Model(nn.Module):
         for layer in self.net[2:-2:2]:
             torch.nn.init.kaiming_normal_(layer.weight)
 
-        torch.nn.init.kaiming_normal_(self.net[-2].weight)
+        torch.nn.init.normal_(self.net[-2].weight)
 
-        self.optim = optim.Adam(self.net.parameters(), lr=0.001)
+        self.optim = optim.AdamW(self.net.parameters(), lr=0.001)
 
     def forward(self, x):
         return self.net(x)
@@ -105,14 +105,14 @@ def train_step(model, target, state_transitions, num_actions, device, discount_f
 
     move_validity = next_states[:, :num_actions] == 0
     with torch.no_grad():
-        q_vals_next = target(next_states)
-    q_vals_next = -np.where(move_validity, q_vals_next, -1).max(-1)[0]
+        q_values_next = target(next_states)
+    q_values_next = -np.where(move_validity, q_values_next, -1).max(-1)
 
     model.optim.zero_grad()
     qvals = model(cur_states)
     one_hot_actions = F.one_hot(torch.LongTensor(actions), num_actions).to(device)
 
-    actual_values = rewards + mask[:, 0] * q_vals_next * discount_factor
+    actual_values = rewards + mask[:, 0] * q_values_next * discount_factor
 
     expected_values = torch.sum(qvals * one_hot_actions, -1)
 
@@ -179,7 +179,7 @@ class Game:
 
         self.episode_rewards = []
 
-        self.rolling_reward = 0
+        self.rolling_reward = []
         self.active_player = 0
 
     def play(self):
@@ -206,7 +206,7 @@ class Game:
         if done:
             if reward == 1:  # Won
                 reward = 1
-            elif reward == 0 or reward is None:  # Lost
+            elif reward == 0:  # Lost
                 reward = -1
             else:  # Draw
                 reward = 0
@@ -215,7 +215,7 @@ class Game:
 
         self.active_player = [1, 0][self.active_player]
 
-        self.rolling_reward += prediction
+        self.rolling_reward.append(prediction)
 
         self.rb.insert(SARSD(self.last_observation, action, reward, observation, done))
 
@@ -223,7 +223,7 @@ class Game:
             self.episode_rewards.append(np.mean(self.rolling_reward))
             if self.test:
                 print(self.rolling_reward)
-            self.rolling_reward = 0
+            self.rolling_reward = []
             observation = self.env.reset()[0]['observation']
             observation = preprocess(observation=observation)
 
