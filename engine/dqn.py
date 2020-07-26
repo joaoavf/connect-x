@@ -75,7 +75,7 @@ class Model(nn.Module):
 
         torch.nn.init.normal_(self.net[-2].weight)
 
-        self.optim = optim.Adam(self.net.parameters(), lr=0.001)
+        self.optim = optim.Adam(self.net.parameters(), lr=0.00001)
 
     def forward(self, x):
         return self.net(x)
@@ -140,15 +140,15 @@ class Game:
 
         self.tq = tqdm()
 
-        self.min_rb_size = 1_000
-        self.sample_size = 512
+        self.min_rb_size = 100_000
+        self.sample_size = 4096
 
         self.test = test
         self.checkpoint = checkpoint
         self.device = device
 
         self.eps_min = 0.1
-        self.eps_decay = 0.9999
+        self.eps_decay = 0.999999
 
         self.env_steps_before_train = 64
         self.tgt_model_update = 250
