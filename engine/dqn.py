@@ -13,6 +13,7 @@ import numpy as np
 from tqdm import tqdm
 import time
 from kaggle_environments import evaluate, make
+from copy import deepcopy
 import ipdb
 
 
@@ -63,50 +64,6 @@ class Model(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-    def get_action(self, observation, epsilon, device):
-        prediction = self(torch.Tensor([observation])).to(device)[0].detach().numpy()  # .max(-1)[-1].item()
-
-        if np.random.random() < epsilon:
-            available_actions = [c for i, c in enumerate(range(self.num_actions)) if observation[i] == 0]
-            return int(np.random.choice(available_actions)), np.max(prediction)
-        else:
-            for i in range(self.num_actions):
-                if observation[i] != 0:
-                    prediction[i] = -1
-            return int(np.argmax(prediction)), np.max(prediction)
-
-
-def train_step(model, target, state_transitions, num_actions, device, discount_factor=0.99):
-    cur_states = torch.stack([torch.Tensor(s.state) for s in state_transitions]).to(device)
-    rewards = torch.stack([torch.Tensor([s.reward]) for s in state_transitions]).to(device)
-    mask = torch.stack([torch.Tensor([0]) if s.done else torch.Tensor([1]) for s in state_transitions]).to(device)
-    next_states = torch.stack([torch.Tensor(s.next_state) for s in state_transitions]).to(device)
-    actions = [s.action for s in state_transitions]
-
-    move_validity = next_states[:, :num_actions] == 0
-    with torch.no_grad():
-        q_values_next = target(next_states)
-    q_values_next = -np.where(move_validity, q_values_next, -1).max(-1)
-
-    model.optimizer.zero_grad()
-    qvals = model(cur_states)
-    one_hot_actions = F.one_hot(torch.LongTensor(actions), num_actions).to(device)
-
-    actual_values = rewards[:, 0] + mask[:, 0] * q_values_next * discount_factor
-
-    expected_values = torch.sum(qvals * one_hot_actions, -1)
-
-    loss = ((actual_values - expected_values) ** 2).mean()
-
-    loss.backward()
-    model.optimizer.step()
-
-    return loss
-
-
-def update_target_model(model, target):
-    target.load_state_dict(model.state_dict())
-
 
 def preprocess(observation):
     board = observation['board']
@@ -114,42 +71,116 @@ def preprocess(observation):
     return np.array([1 if value == player else 0 if value == 0 else -1 for value in board])
 
 
-class Game:
-    def __init__(self, test=False, checkpoint=None, device='cpu'):
-        if not test:
-            wandb.init(project="dqn-tutorial", name="dqn-minimax")
+class Agent:
+    def __init__(self, model):
+        self.model = model
+        self.target = deepcopy(model)
 
-        self.tq = tqdm()
+    def get_action(self, observation, epsilon):
+        prediction = self.model(torch.Tensor([observation]))[0].detach().numpy()
+        num_actions = self.model.num_actions
 
-        self.min_rb_size = 100_000
-        self.sample_size = 4096
+        if np.random.random() < epsilon:
+            available_actions = [c for i, c in enumerate(range(num_actions)) if observation[i] == 0]
+            return int(np.random.choice(available_actions)), np.max(prediction)
+        else:
+            for i in range(num_actions):
+                if observation[i] != 0:
+                    prediction[i] = -1
+            return int(np.argmax(prediction)), np.max(prediction)
 
-        self.test = test
-        self.checkpoint = checkpoint
-        self.device = device
+    def update_target_model(self):
+        self.target.load_state_dict(self.model.state_dict())
 
-        self.eps_min = 0.1
-        self.eps_decay = 0.999999
+    def save_model_to_disk(self, path):
+        torch.save(self.model.state_dict(), path)
 
-        self.env_steps_before_train = 64
-        self.tgt_model_update = 250
+    def train_step(self, state_transitions, num_actions, device, discount_factor=0.99):
+        cur_states = torch.stack([torch.Tensor(s.state) for s in state_transitions]).to(device)
+        rewards = torch.stack([torch.Tensor([s.reward]) for s in state_transitions]).to(device)
+        mask = torch.stack([torch.Tensor([0]) if s.done else torch.Tensor([1]) for s in state_transitions]).to(device)
+        next_states = torch.stack([torch.Tensor(s.next_state) for s in state_transitions]).to(device)
+        actions = [s.action for s in state_transitions]
 
+        move_validity = next_states[:, :num_actions] == 0
+        with torch.no_grad():
+            q_values_next = self.target(next_states)
+        q_values_next = -np.where(move_validity, q_values_next, -1).max(-1)
+
+        self.model.optimizer.zero_grad()
+        qvals = self.model(cur_states)
+        one_hot_actions = F.one_hot(torch.LongTensor(actions), num_actions).to(device)
+
+        actual_values = rewards[:, 0] + mask[:, 0] * q_values_next * discount_factor
+
+        expected_values = torch.sum(qvals * one_hot_actions, -1)
+
+        loss = ((actual_values - expected_values) ** 2).mean()
+
+        loss.backward()
+        self.model.optimizer.step()
+
+        return loss
+
+
+class ConnectX:
+    def __init__(self):
         self.env = make('connectx', debug=False)
         self.configuration = self.env.configuration
         self.action_space = gym.spaces.Discrete(self.configuration.columns)
         self.observation_space = np.array([0] * self.configuration.columns * self.configuration.rows)
 
+    def reset(self, num_agents=None):
+        return self.env.reset(num_agents)
+
+    def play(self, agent, **kwargs):
+        return self.env.play(agent, **kwargs)
+
+    def render(self, **kwargs):
+        return self.env.render(**kwargs)
+
+    def step(self, actions):
+        return self.env.step(actions)
+
+    @property
+    def done(self):
+        return self.env.done
+
+
+class Trainer:
+    def __init__(self, test=False, checkpoint=None, device='cpu', min_rb_size=100_000, sample_size=4_096,
+                 eps=1, eps_min=0.1, eps_decay=0.999999, env_steps_before_train=64, tgt_model_update=250):
+        if not test:
+            wandb.init(project="dqn-tutorial", name="dqn-minimax")
+
+        self.tq = tqdm()
+
+        self.min_rb_size = min_rb_size
+        self.sample_size = sample_size
+
+        self.test = test
+        self.checkpoint = checkpoint
+        self.device = device
+
+        self.eps = eps
+        self.eps_min = eps_min
+        self.eps_decay = eps_decay
+
+        self.env_steps_before_train = env_steps_before_train
+        self.tgt_model_update = tgt_model_update
+
+        self.env = ConnectX()
+
         self.last_observation = self.env.reset()[0]['observation']
 
         self.last_observation = preprocess(observation=self.last_observation)
 
-        self.model = Model(self.observation_space.shape, self.action_space.n).to(device)
-        self.target = Model(self.observation_space.shape, self.action_space.n).to(device)
-
+        model = Model(self.env.observation_space.shape, self.env.action_space.n).to(device)
         if checkpoint is not None:
             print('Models loaded:')
-            self.model.load_state_dict(torch.load(checkpoint))
-            self.target.load_state_dict(torch.load(checkpoint))
+            model.load_state_dict(torch.load(checkpoint))
+
+        self.agent = Agent(model=model)
 
         self.rb = ReplayBuffer()
         self.steps_since_train = 0
@@ -173,7 +204,7 @@ class Game:
         if self.test:
             eps = 0
 
-        action, prediction = self.model.get_action(observation=self.last_observation, epsilon=eps, device=self.device)
+        action, prediction = self.agent.get_action(observation=self.last_observation, epsilon=eps)
 
         p_dict = self.env.step([action if i == self.active_player else None for i in [0, 1]])
 
@@ -214,8 +245,8 @@ class Game:
         self.step_num += 1
 
         if not self.test and self.step_num > self.min_rb_size and self.steps_since_train > self.env_steps_before_train:
-            loss = train_step(self.model, self.target, self.rb.sample(self.sample_size), self.action_space.n,
-                              self.device)
+            loss = self.agent.train_step(self.rb.sample(self.sample_size), self.env.action_space.n, self.device)
+
             wandb.log({'loss': loss.detach().cpu().item(),
                        'eps': eps,
                        'rewards': np.mean(self.episode_rewards)
@@ -226,15 +257,16 @@ class Game:
             self.epochs_since_tgt += 1
 
             if self.epochs_since_tgt > self.tgt_model_update:
-                update_target_model(self.model, self.target)
-                torch.save(self.target.state_dict(), f'models/dqn_minimax_{self.step_num}.pth')
+                self.agent.update_target_model()
+                self.agent.save_model_to_disk(f'models/{self.step_num}.pth')
+
                 self.epochs_since_tgt = 0
 
             self.steps_since_train = 0
 
 
 def main(test=False, checkpoint=None, device='cpu'):
-    game = Game(test=test, checkpoint=checkpoint, device=device)
+    game = Trainer(test=test, checkpoint=checkpoint, device=device)
     try:
         while True:
             game.play()
