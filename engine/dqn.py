@@ -12,7 +12,7 @@ import wandb
 import numpy as np
 from tqdm import tqdm
 import time
-from kaggle_environments import evaluate, make
+from kaggle_environments import make, Environment, environments
 from copy import deepcopy
 import ipdb
 
@@ -65,7 +65,7 @@ class Model(nn.Module):
         return self.net(x)
 
 
-def preprocess(observation):
+def pre_process(observation):
     board = observation['board']
     player = observation['mark']
     return np.array([1 if value == player else 0 if value == 0 else -1 for value in board])
@@ -123,29 +123,11 @@ class Agent:
         return loss
 
 
-class ConnectX:
+class ConnectX(Environment):
     def __init__(self):
-        self.env = make('connectx', debug=False)
-        self.configuration = self.env.configuration
+        super(ConnectX, self).__init__(**environments['connectx'])
         self.action_space = gym.spaces.Discrete(self.configuration.columns)
         self.observation_space = np.array([0] * self.configuration.columns * self.configuration.rows)
-
-    def reset(self, num_agents=None):
-        return self.env.reset(num_agents)
-
-    def play(self, agent, **kwargs):
-        return self.env.play(agent, **kwargs)
-
-    def render(self, **kwargs):
-        return self.env.render(**kwargs)
-
-    def step(self, actions):
-        return self.env.step(actions)
-
-    @property
-    def done(self):
-        return self.env.done
-
 
 class Trainer:
     def __init__(self, test=False, checkpoint=None, device='cpu', min_rb_size=100_000, sample_size=4_096,
@@ -173,7 +155,7 @@ class Trainer:
 
         self.last_observation = self.env.reset()[0]['observation']
 
-        self.last_observation = preprocess(observation=self.last_observation)
+        self.last_observation = pre_process(observation=self.last_observation)
 
         model = Model(self.env.observation_space.shape, self.env.action_space.n).to(device)
         if checkpoint is not None:
@@ -212,7 +194,7 @@ class Trainer:
         done = self.env.done
 
         observation = p_dict[[1, 0][self.active_player]]['observation']
-        observation = preprocess(observation=observation)
+        observation = pre_process(observation=observation)
 
         if done:
             if reward == 1:  # Won
@@ -236,7 +218,7 @@ class Trainer:
                 print(self.rolling_reward)
             self.rolling_reward = []
             observation = self.env.reset()[0]['observation']
-            observation = preprocess(observation=observation)
+            observation = pre_process(observation=observation)
 
             self.active_player = 0
 
