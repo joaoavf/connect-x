@@ -129,6 +129,7 @@ class ConnectX(Environment):
         self.action_space = gym.spaces.Discrete(self.configuration.columns)
         self.observation_space = np.array([0] * self.configuration.columns * self.configuration.rows)
 
+
 class Trainer:
     def __init__(self, test=False, checkpoint=None, device='cpu', min_rb_size=100_000, sample_size=4_096,
                  eps=1, eps_min=0.1, eps_decay=0.999999, env_steps_before_train=64, tgt_model_update=250):
@@ -182,12 +183,31 @@ class Trainer:
             time.sleep(0.01)
 
         self.tq.update(1)
-        eps = max(self.eps_decay ** self.step_num, self.eps_min)
+        self.eps = max(self.eps_decay ** self.eps, self.eps_min)
         if self.test:
-            eps = 0
+            self.eps = 0
 
-        action, prediction = self.agent.get_action(observation=self.last_observation, epsilon=eps)
+        action, prediction = self.agent.get_action(observation=self.last_observation, epsilon=self.eps)
 
+        observation, reward, done = self.process_action(action)
+
+        self.rb.insert(SARSD(self.last_observation, action, reward, observation, done))
+
+        self.finish_step_routine(observation=observation, prediction=prediction)
+
+        if done:
+            self.new_game()
+
+        if not self.test and self.step_num > self.min_rb_size and self.steps_since_train > self.env_steps_before_train:
+            self.train_model_routine()
+
+            if self.epochs_since_tgt > self.tgt_model_update:
+                self.update_target_model_routine()
+
+    def switch_active_player(self):
+        self.active_player = [1, 0][self.active_player]
+
+    def process_action(self, action):
         p_dict = self.env.step([action if i == self.active_player else None for i in [0, 1]])
 
         reward = p_dict[self.active_player]['reward']
@@ -196,55 +216,42 @@ class Trainer:
         observation = p_dict[[1, 0][self.active_player]]['observation']
         observation = pre_process(observation=observation)
 
-        if done:
-            if reward == 1:  # Won
-                reward = 1
-            elif reward == 0:  # Lost
-                reward = -1
-            else:  # Draw
-                reward = 0
-        else:
-            reward = 0
+        reward = 1 if reward == 1 else 0
+        return observation, reward, done
 
-        self.active_player = [1, 0][self.active_player]
+    def new_game(self):
+        self.episode_rewards.append(np.mean(self.rolling_reward))
+        if self.test:
+            print(self.rolling_reward)
+        self.rolling_reward = []
+        self.last_observation = pre_process(observation=self.env.reset()[0]['observation'])
+        self.active_player = 0
 
+    def update_target_model_routine(self):
+        self.agent.update_target_model()
+        self.agent.save_model_to_disk(f'models/{self.step_num}.pth')
+        self.epochs_since_tgt = 0
+
+    def train_model_routine(self):
+        self.episode_rewards = []
+        self.epochs_since_tgt += 1
+        self.steps_since_train = 0
+        loss = self.agent.train_step(self.rb.sample(self.sample_size), self.env.action_space.n, self.device)
+        self.update_wandb(loss=loss)
+
+    def update_wandb(self, loss):
+        wandb.log({'loss': loss.detach().cpu().item(),
+                   'eps': self.eps,
+                   'rewards': np.mean(self.episode_rewards)
+                   },
+                  step=self.step_num)
+
+    def finish_step_routine(self, observation, prediction):
         self.rolling_reward.append(prediction)
-
-        self.rb.insert(SARSD(self.last_observation, action, reward, observation, done))
-
-        if done:
-            self.episode_rewards.append(np.mean(self.rolling_reward))
-            if self.test:
-                print(self.rolling_reward)
-            self.rolling_reward = []
-            observation = self.env.reset()[0]['observation']
-            observation = pre_process(observation=observation)
-
-            self.active_player = 0
-
+        self.switch_active_player()
         self.last_observation = observation
         self.steps_since_train += 1
         self.step_num += 1
-
-        if not self.test and self.step_num > self.min_rb_size and self.steps_since_train > self.env_steps_before_train:
-            loss = self.agent.train_step(self.rb.sample(self.sample_size), self.env.action_space.n, self.device)
-
-            wandb.log({'loss': loss.detach().cpu().item(),
-                       'eps': eps,
-                       'rewards': np.mean(self.episode_rewards)
-                       },
-                      step=self.step_num)
-
-            self.episode_rewards = []
-            self.epochs_since_tgt += 1
-
-            if self.epochs_since_tgt > self.tgt_model_update:
-                self.agent.update_target_model()
-                self.agent.save_model_to_disk(f'models/{self.step_num}.pth')
-
-                self.epochs_since_tgt = 0
-
-            self.steps_since_train = 0
 
 
 def main(test=False, checkpoint=None, device='cpu'):
