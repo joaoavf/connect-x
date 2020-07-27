@@ -6,7 +6,6 @@ https://www.kaggle.com/matant/monte-carlo-tree-search-connectx
 """
 
 from random import shuffle
-from time import time
 import math
 from utils import *
 from collections import deque
@@ -22,7 +21,7 @@ from random import sample, random
 import wandb
 import numpy as np
 from tqdm import tqdm
-import time
+from time import time
 from kaggle_environments import Environment, environments, evaluate
 from copy import deepcopy
 import ipdb
@@ -106,7 +105,7 @@ class Node:
         return node
 
     def model_score(self, model):
-        return model(self.board)
+        return model(torch.Tensor([self.board]))[0].detach().numpy().max()
 
 
 @dataclass
@@ -164,13 +163,14 @@ def pre_process(observation):
 
 
 class Agent:
-    def __init__(self, model):
+    def __init__(self, model, max_time):
         self.model = model
         self.target = deepcopy(model)
-        self.mcts = MCTS(model=model, max_time=1)
+        self.mcts = MCTS(model=model, max_time=max_time)
 
     def get_action(self, raw_obs, board):
-        bit_board, mask = get_position_mask_bitmap(raw_obs['board'], raw_obs['mark'])
+        np_board = translate_board(raw_obs['board'])
+        bit_board, mask = get_position_mask_bitmap(np_board, raw_obs['mark'])
 
         node = Node(board=board, bit_board=bit_board ^ mask, mask=mask)
         return self.mcts.return_play(current_node=node)
@@ -244,8 +244,10 @@ class EvolutionaryTrainer:
             if i % self.pit_freq == self.pit_freq - 1:
                 frac_win = self.pit()  # compare new net with previous net
                 if frac_win > self.win_threshold:
+                    self.trainer.agent.model = deepcopy(self.new_trainer.agent.model)
                     torch.save(self.new_trainer.agent.model.state_dict(), 'models/az_{i}.pth')
-                    self.trainer = self.new_trainer
+                win_random = self.pit_random()
+                update_wandb(frac_win=frac_win, win_random=win_random, step_num=i)
 
     def pit(self):
         def my_agent(obs, config):
@@ -258,6 +260,13 @@ class EvolutionaryTrainer:
 
         return get_win_percentages(agent1=my_new_agent, agent2=my_agent, n_rounds=100)
 
+    def pit_random(self):
+        def my_new_agent(obs, config):
+            board = pre_process(observation=obs)
+            return self.trainer.agent.get_action(raw_obs=obs, board=board)
+
+        return get_win_percentages(agent1=my_new_agent, agent2=ConnectX().agents['random'], n_rounds=100)
+
 
 def get_win_percentages(agent1, agent2, n_rounds=100):
     # Use default Connect Four setup
@@ -269,13 +278,13 @@ def get_win_percentages(agent1, agent2, n_rounds=100):
     return np.round(outcomes.count([1, -1]) / len(outcomes), 2)
 
 
-def update_wandb(frac_win, step_num):
-    wandb.log({'win %': frac_win}, step=step_num)
+def update_wandb(frac_win, win_random, step_num):
+    wandb.log({'win %': frac_win, 'win_random %': win_random}, step=step_num)
 
 
 class Trainer:
     def __init__(self, model, env=ConnectX(), device='cpu', min_rb_size=100_000, sample_size=4_096,
-                 eps=1, eps_min=0.1, eps_decay=0.999999, env_steps_before_train=64, tgt_model_update=250):
+                 env_steps_before_train=64, tgt_model_update=250, max_time=0.01):
         self.tq = tqdm()
 
         self.min_rb_size = min_rb_size
@@ -291,7 +300,7 @@ class Trainer:
         self.last_raw_observation = self.env.reset()[0]['observation']
         self.last_observation = pre_process(observation=self.last_raw_observation)
 
-        self.agent = Agent(model=model)
+        self.agent = Agent(model=model, max_time=max_time)
 
         self.rb = ReplayBuffer()
         self.steps_since_train = 0
@@ -345,7 +354,7 @@ class Trainer:
 
     def update_target_model_routine(self):
         self.agent.update_target_model()
-        self.agent.save_model_to_disk(f'models/{self.step_num}.pth')
+        self.agent.save_model_to_disk(f'models/target_{self.step_num}.pth')
         self.epochs_since_tgt = 0
 
     def train_model_routine(self, rb):
