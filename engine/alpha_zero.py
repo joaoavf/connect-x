@@ -244,7 +244,7 @@ class EvolutionaryTrainer:
             if i % self.pit_freq == self.pit_freq - 1:
                 frac_win = self.pit()  # compare new net with previous net
                 if frac_win > self.win_threshold:
-                    self.trainer.agent.model = deepcopy(self.new_trainer.agent.model)
+                    self.trainer = Trainer(self.new_trainer.agent.model)
                     torch.save(self.new_trainer.agent.model.state_dict(), 'models/az_{i}.pth')
                 win_random = self.pit_random()
                 update_wandb(frac_win=frac_win, win_random=win_random, step_num=i)
@@ -275,7 +275,7 @@ def get_win_percentages(agent1, agent2, n_rounds=100):
     outcomes = evaluate("connectx", [agent1, agent2], config, [], n_rounds // 2)
     # Agent 2 goes first (roughly) half the time
     outcomes += [[b, a] for [a, b] in evaluate("connectx", [agent2, agent1], config, [], n_rounds - n_rounds // 2)]
-    return np.round(outcomes.count([1, -1]) / len(outcomes), 2)
+    return np.array(outcomes)[:, 0].mean()
 
 
 def update_wandb(frac_win, win_random, step_num):
@@ -283,7 +283,7 @@ def update_wandb(frac_win, win_random, step_num):
 
 
 class Trainer:
-    def __init__(self, model, env=ConnectX(), device='cpu', min_rb_size=100_000, sample_size=4_096,
+    def __init__(self, model, env=ConnectX(), device='cpu', min_rb_size=25_000, sample_size=4_096,
                  env_steps_before_train=64, tgt_model_update=250, max_time=0.01):
         self.tq = tqdm()
 
@@ -329,8 +329,8 @@ class Trainer:
         if self.step_num > self.min_rb_size and self.steps_since_train > self.env_steps_before_train:
             self.train_model_routine(rb)
 
-        if self.epochs_since_tgt > self.tgt_model_update:
-            self.update_target_model_routine()
+            if self.epochs_since_tgt > self.tgt_model_update:
+                self.update_target_model_routine()
 
     def switch_active_player(self):
         self.active_player = [1, 0][self.active_player]
